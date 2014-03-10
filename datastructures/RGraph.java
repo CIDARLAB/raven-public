@@ -112,10 +112,12 @@ public class RGraph {
         HashSet<RNode> seenNodes = new HashSet();
         ArrayList<RNode> queue = new ArrayList<RNode>();
         queue.add(this.getRootNode());
+        
         while (!queue.isEmpty()) {
             RNode current = queue.get(0);
             seenNodes.add(current);
             queue.remove(0);
+            
             Part toAdd = coll.getPart(current.getUUID(), true);
             if (toAdd != null) {
                 if (current.getVector() != null) {
@@ -125,6 +127,7 @@ public class RGraph {
                     toReturn.put(toAdd, null);
                 }
             }
+            
             for (RNode neighbor : current.getNeighbors()) {
                 if (!seenNodes.contains(neighbor)) {
                     queue.add(neighbor);
@@ -223,9 +226,13 @@ public class RGraph {
 
                     //Edge case where multiple goal parts have the same composition
                     if (hasParent == false) {
-                        String name = finalNode.getName();
-                        name = name + " | " + current.getName();
-                        finalNode.setName(name);
+                        
+                        ArrayList<RNode> fNeighbors = finalNode.getNeighbors();
+                        for (int k = 0; k < neighbors.size(); k++) {
+                            current.replaceNeighbor(neighbors.get(k), fNeighbors.get(k));
+                            neighbors.get(k).removeNeighbor(current);
+                            fNeighbors.get(k).addNeighbor(current);
+                        }
                     }
                 }
             }
@@ -626,7 +633,7 @@ public class RGraph {
     /**
      * Generate a Weyekin image file for a this graph *
      */
-    public String generateWeyekinFile(ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashMap<Part, Vector> compPartsVectors, ArrayList<RNode> goalPartNodes, boolean scarless) {
+    public String generateWeyekinFile(ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashMap<Part, Vector> compPartsVectors, ArrayList<RNode> goalPartNodes, boolean scarless, String method) {
 
         //Initiate weyekin file
         StringBuilder weyekinText = new StringBuilder();
@@ -725,15 +732,32 @@ public class RGraph {
                     String vecLO = vector.getLOverhang();
                     String vecRO = vector.getROverhang();
                     int vecL = vector.getLevel();
+                    ArrayList<String> vecComposition = new ArrayList<String>();
+                    ArrayList<String> vecTypes = new ArrayList<String>();
+                    ArrayList<String> vecDirection = new ArrayList<String>();
+                    vecComposition.add("lacZ");
+                    vecTypes.add("lacZ");
+                    vecDirection.add("+");
                     String vecID = vecName + "|" + vecLO + "|" + vecL + "|" + vecRO;
                     edgeLines = edgeLines + "\"" + vecID + "\"" + " -> " + "\"" + nodeID + "\"" + "\n";
-                    pigeonLine = generatePigeonCodeOld(null, null, null, null, vecID, vecLO, vecRO, vecName);
+                    
+                    //For MoClo and Golden Gate, destination vectors are made and they will show a lacZ PCR and destination vector as opposed to a PCRed vector
+                    if (method.equalsIgnoreCase("moclo") || method.equalsIgnoreCase("goldengate")) {
+                        pigeonLine = generatePigeonCodeOld(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), vecID, vecLO, vecRO, vecName);
+                    } else {
+                        pigeonLine = generatePigeonCodeOld(null, null, null, null, vecID, vecLO, vecRO, vecName);
+                    }
                     weyekinText.append(pigeonLine.toString());
 
                     if (!startVectorsLOlevelRO.contains(vecID)) {
                         String NvecID = vecName + "|" + vecL;
                         edgeLines = edgeLines + "\"" + NvecID + "\"" + " -> " + "\"" + vecID + "\"" + "\n";
-                        pigeonLine = generatePigeonCodeOld(null, null, null, null, NvecID, null, null, vecName);
+                        
+                        if (method.equalsIgnoreCase("moclo") || method.equalsIgnoreCase("goldengate")) {
+                            pigeonLine = generatePigeonCodeOld(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), NvecID, null, null, null);
+                        } else {
+                            pigeonLine = generatePigeonCodeOld(null, null, null, null, NvecID, null, null, vecName);
+                        }
                         weyekinText.append(pigeonLine.toString());
                     }
                 }
@@ -995,7 +1019,7 @@ public class RGraph {
 
                 //Turn direction of glyph in reverse if reverse direction
                 if (!direction.isEmpty()) {
-                    dir = direction.get(i);
+                    dir = direction.get(i).trim();
                     if ("-".equals(dir)) {
                         pigeonLine.append("<");
                     }
@@ -1009,6 +1033,8 @@ public class RGraph {
                 } else if (type.equalsIgnoreCase("gene") || type.equalsIgnoreCase("g")) {
                     pigeonLine.append("c ").append(name).append(" 1" + "\n");
                 } else if (type.equalsIgnoreCase("reporter") || type.equalsIgnoreCase("rep")) {
+                    pigeonLine.append("c ").append(name).append(" 9" + "\n");
+                } else if (type.equalsIgnoreCase("lacZ") || type.equalsIgnoreCase("l")) {
                     pigeonLine.append("c ").append(name).append(" 2" + "\n");
                 } else if (type.equalsIgnoreCase("resistance") || type.equalsIgnoreCase("res")) {
                     pigeonLine.append("g ").append(name).append(" 2" + "\n");

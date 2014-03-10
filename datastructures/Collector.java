@@ -92,6 +92,11 @@ public class Collector {
         HashSet<String> queryTags;
         HashSet<String> currentTags;
         ArrayList<Part> allPartsWithName = this.getAllPartsWithName(name, allowTransient);
+        
+        if (name == null) {
+            allPartsWithName = this.getAllParts(true);
+        }
+        
         if (allPartsWithName != null) {
             for (Part p : allPartsWithName) {
                 if (allowTransient || !p.isTransient()) {

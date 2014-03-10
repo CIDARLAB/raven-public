@@ -46,50 +46,59 @@ public class RHomologyPrimerDesign {
             missingSequence = true;
         }      
         
-        if (currentPart.isBasic()) {
-                    
-            //Get neighbor sequences
-            int indexOf = composition.indexOf(currentPart);
-            if (indexOf == 0) {
-                leftNeighbor = composition.get(composition.size() - 1);
-                rightNeighbor = composition.get(indexOf + 1);
-                rSeq = rightNeighbor.getSeq();
-                lSeq = leftNeighbor.getSeq();
-            } else if (indexOf == composition.size() - 1) {
-                rightNeighbor = composition.get(0);
-                leftNeighbor = composition.get(indexOf - 1);
-                rSeq = rightNeighbor.getSeq();
-                lSeq = leftNeighbor.getSeq();
-            } else {
-                rightNeighbor = composition.get(indexOf + 1);
-                leftNeighbor = composition.get(indexOf - 1);
-                rSeq = rightNeighbor.getSeq();
-                lSeq = leftNeighbor.getSeq();
-            }
+        //Edge case where a plasmid only has one part or a part is re-used from the library
+        if (root.getNeighbors().isEmpty()) {
+            leftNeighbor = currentPart;
+            rightNeighbor = currentPart;
+            lSeq = leftNeighbor.getSeq();
+            rSeq = rightNeighbor.getSeq();
+            
         } else {
-            
-            Part first = currentPart.getComposition().get(0);
-            int indexOfFirst = composition.indexOf(first);
-            Part last = currentPart.getComposition().get(currentPart.getComposition().size()-1);
-            int indexOfLast = composition.indexOf(last);
-       
-            //Get neighbor sequences of beginning of part
-            if (indexOfFirst == 0) {
-                leftNeighbor = composition.get(composition.size() - 1);
-                lSeq = leftNeighbor.getSeq();
+            if (currentPart.isBasic()) {
+
+                //Get neighbor sequences
+                int indexOf = composition.indexOf(currentPart);
+                if (indexOf == 0) {
+                    leftNeighbor = composition.get(composition.size() - 1);
+                    rightNeighbor = composition.get(indexOf + 1);
+                    rSeq = rightNeighbor.getSeq();
+                    lSeq = leftNeighbor.getSeq();
+                } else if (indexOf == composition.size() - 1) {
+                    rightNeighbor = composition.get(0);
+                    leftNeighbor = composition.get(indexOf - 1);
+                    rSeq = rightNeighbor.getSeq();
+                    lSeq = leftNeighbor.getSeq();
+                } else {
+                    rightNeighbor = composition.get(indexOf + 1);
+                    leftNeighbor = composition.get(indexOf - 1);
+                    rSeq = rightNeighbor.getSeq();
+                    lSeq = leftNeighbor.getSeq();
+                }
             } else {
-                leftNeighbor = composition.get(indexOfFirst - 1);
-                lSeq = leftNeighbor.getSeq();
-            }        
-            
-            //Get neighbor sequences of beginning of part
-            if (indexOfLast == composition.size() - 1) {
-                rightNeighbor = composition.get(0);
-                rSeq = rightNeighbor.getSeq();
-            } else {
-                rightNeighbor = composition.get(indexOfFirst + 1);
-                rSeq = rightNeighbor.getSeq();
-            }      
+
+                Part first = currentPart.getComposition().get(0);
+                int indexOfFirst = composition.indexOf(first);
+                Part last = currentPart.getComposition().get(currentPart.getComposition().size() - 1);
+                int indexOfLast = composition.indexOf(last);
+
+                //Get neighbor sequences of beginning of part
+                if (indexOfFirst == 0) {
+                    leftNeighbor = composition.get(composition.size() - 1);
+                    lSeq = leftNeighbor.getSeq();
+                } else {
+                    leftNeighbor = composition.get(indexOfFirst - 1);
+                    lSeq = leftNeighbor.getSeq();
+                }
+
+                //Get neighbor sequences of beginning of part
+                if (indexOfLast == composition.size() - 1) {
+                    rightNeighbor = composition.get(0);
+                    rSeq = rightNeighbor.getSeq();
+                } else {
+                    rightNeighbor = composition.get(indexOfFirst + 1);
+                    rSeq = rightNeighbor.getSeq();
+                }
+            }
         }
 
         //Look to see if there are blank sequences for the right or left part

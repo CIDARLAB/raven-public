@@ -102,6 +102,26 @@ public class Vector {
         }
         return toReturn;
     }
+    
+    public String getComposition() {
+        String toReturn = "";
+        for (String tag : this.searchTags) {
+            if (tag.startsWith("Composition:")) {
+                toReturn = tag.substring(13);
+            }
+        }
+        return toReturn;
+    }
+    
+    public String getVector() {
+        String toReturn = "";
+        for (String tag : this.searchTags) {
+            if (tag.startsWith("Vector:")) {
+                toReturn = tag.substring(8);
+            }
+        }
+        return toReturn;
+    }
 
     public String getType() {
         String toReturn = "";

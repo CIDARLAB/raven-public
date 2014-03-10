@@ -269,7 +269,11 @@ public class Modularity extends Partitioning {
             root.setROverhang(Integer.toString(count));
             count++;
             ArrayList<RNode> neighbors = root.getNeighbors();
-            count = assignPrimaryOverhangs(root, neighbors, root, count);
+            if (neighbors.isEmpty()) {
+                l0nodes.add(root);
+            } else {
+                count = assignPrimaryOverhangs(root, neighbors, root, count);
+            }
         }
         
         getStageDirectionAssignHash(optimalGraphs);
@@ -330,7 +334,7 @@ public class Modularity extends Partitioning {
     protected void cartesianLibraryAssignment(ArrayList<RGraph> graphs, HashMap<String, String> forcedOverhangHash, HashMap<Integer, Vector> stageVectors) {
         
         //Initialize node and library overhang hashes
-        HashMap<String, HashSet<String>> nodePartOHHashes = initializPartOHHashes(graphs);
+        HashMap<String, HashSet<String>> nodePartOHHashes = initializePartOHHashes(graphs);
         HashMap<String, HashSet<String>> nodeVectorOHHash = initializeVectorOHHashes(graphs);
     
         //Sort list of the key values of the nodeOH to library OH map, from 0 to highest seen node OH
@@ -415,6 +419,8 @@ public class Modularity extends Partitioning {
                 _rootBasicNodeHash.put(root, l0nodes);
             }
         }
+        
+        
 
         return count;
     }
@@ -436,98 +442,121 @@ public class Modularity extends Partitioning {
             rootDir.addAll(direction);
             ArrayList<RNode> l0Nodes = _rootBasicNodeHash.get(root);
 
-            //Determine which levels each basic node impacts            
-            for (int i = 0; i < l0Nodes.size(); i++) {
-                int level = 0;
-                RNode l0Node = l0Nodes.get(i);
-                RNode parent = _parentHash.get(l0Node);
+            //Edge case of making an existing part
+            if (l0Nodes.size() == 1) {
+                HashMap<String, ArrayList<RNode>> directionHash = new HashMap<String, ArrayList<RNode>>();
+                directionHash.put("+", l0Nodes);
                 
-                //Start OH exclusivity set... start with all of parent's children
+                if (_stageDirectionAssignHash.isEmpty()) {
+                    _stageDirectionAssignHash.put(1, directionHash);
+                } else {
+                    _stageDirectionAssignHash.get(1).get("+").addAll(l0Nodes);
+                }
+//                _stageDirectionAssignHash.put(1, directionHash);
+                RNode node = l0Nodes.get(0);
                 HashSet<String> exclusiveL = new HashSet<String>();
+                exclusiveL.add(node.getROverhang());
                 HashSet<String> exclusiveR = new HashSet<String>();
-                for (RNode neighbor: parent.getNeighbors()) {
-                    if (neighbor.getStage() < parent.getStage()) {
-                        exclusiveL.add(neighbor.getLOverhang());
-                        exclusiveL.add(neighbor.getROverhang());
-                        exclusiveR.add(neighbor.getLOverhang());
-                        exclusiveR.add(neighbor.getROverhang());
-                    }
-                }
-
-                //Tabulate all stages of impact for part 3 of overhang assignment
-                ArrayList<Integer> stagesOfImpact = new ArrayList<Integer>();
-                _nodeStagesHash.put(l0Node, stagesOfImpact);
-                stagesOfImpact.add(level);
+                exclusiveR.add(node.getLOverhang());
+                _OHexclusionHash.put(node.getLOverhang(), exclusiveL);
+                _OHexclusionHash.put(node.getROverhang(), exclusiveR);
+                _nodeStagesHash.put(node, new ArrayList<Integer>(1));
                 
-                //Go up the parent hash until the parent doesn't have an overhang impacted by the child
-                RNode ancestor = parent;
-                while (l0Node.getLOverhang().equals(ancestor.getLOverhang()) || l0Node.getROverhang().equals(ancestor.getROverhang())) {                    
-                    level = ancestor.getStage();
+            } else {
+
+                //Determine which levels each basic node impacts            
+                for (int i = 0; i < l0Nodes.size(); i++) {
+                    int level = 0;
+                    RNode l0Node = l0Nodes.get(i);
+                    RNode parent = _parentHash.get(l0Node);
+
+                    //Start OH exclusivity set... start with all of parent's children
+                    HashSet<String> exclusiveL = new HashSet<String>();
+                    HashSet<String> exclusiveR = new HashSet<String>();
+                    for (RNode neighbor : parent.getNeighbors()) {
+                        if (neighbor.getStage() < parent.getStage()) {
+                            exclusiveL.add(neighbor.getLOverhang());
+                            exclusiveL.add(neighbor.getROverhang());
+                            exclusiveR.add(neighbor.getLOverhang());
+                            exclusiveR.add(neighbor.getROverhang());
+                        }
+                    }
+
+                    //Tabulate all stages of impact for part 3 of overhang assignment
+                    ArrayList<Integer> stagesOfImpact = new ArrayList<Integer>();
+                    _nodeStagesHash.put(l0Node, stagesOfImpact);
                     stagesOfImpact.add(level);
-                    
-                    if (_parentHash.containsKey(ancestor)) {
-                        ancestor = _parentHash.get(ancestor);
-                        
-                        //Add exclusive OHs for each relevant ancestor
-                        for (RNode neighbor : ancestor.getNeighbors()) {
-                            if (neighbor.getStage() < ancestor.getStage()) {
-                                exclusiveL.add(neighbor.getLOverhang());
-                                exclusiveL.add(neighbor.getROverhang());
-                                exclusiveR.add(neighbor.getLOverhang());
-                                exclusiveR.add(neighbor.getROverhang());
+
+                    //Go up the parent hash until the parent doesn't have an overhang impacted by the child
+                    RNode ancestor = parent;
+                    while (l0Node.getLOverhang().equals(ancestor.getLOverhang()) || l0Node.getROverhang().equals(ancestor.getROverhang())) {
+                        level = ancestor.getStage();
+                        stagesOfImpact.add(level);
+
+                        if (_parentHash.containsKey(ancestor)) {
+                            ancestor = _parentHash.get(ancestor);
+
+                            //Add exclusive OHs for each relevant ancestor
+                            for (RNode neighbor : ancestor.getNeighbors()) {
+                                if (neighbor.getStage() < ancestor.getStage()) {
+                                    exclusiveL.add(neighbor.getLOverhang());
+                                    exclusiveL.add(neighbor.getROverhang());
+                                    exclusiveR.add(neighbor.getLOverhang());
+                                    exclusiveR.add(neighbor.getROverhang());
+                                }
                             }
-                        }     
-                        
-                    } else {
-                        break;
+
+                        } else {
+                            break;
+                        }
                     }
-                }
-                
-                //Add to exclusion hash for the left OH
-                if (_OHexclusionHash.containsKey(l0Node.getLOverhang())) {
-                    HashSet<String> exL = _OHexclusionHash.get(l0Node.getLOverhang());
-                    exL.addAll(exclusiveL);
-                } else {
-                    _OHexclusionHash.put(l0Node.getLOverhang(), exclusiveL);
-                }
-                
-                //Add to exclusion hash for the right OH
-                if (_OHexclusionHash.containsKey(l0Node.getROverhang())) {
-                    HashSet<String> exR = _OHexclusionHash.get(l0Node.getROverhang());
-                    exR.addAll(exclusiveR);
-                } else {
-                    _OHexclusionHash.put(l0Node.getROverhang(), exclusiveR);
-                }
-                
-                //Determine direction                
-                String l0Direction = rootDir.get(0);
-                if (l0Node.getComposition().size() == 1) {
-                    ArrayList<String> l0Dir = new ArrayList<String>();
-                    l0Dir.add(l0Direction);
-                    l0Node.setDirection(l0Dir);
-                }
-                int size = l0Node.getDirection().size();
-                rootDir.subList(0, size).clear();
 
-                //Enter node into stage direction hash
-                HashMap<String, ArrayList<RNode>> directionHash;
-                ArrayList<RNode> nodeList;
+                    //Add to exclusion hash for the left OH
+                    if (_OHexclusionHash.containsKey(l0Node.getLOverhang())) {
+                        HashSet<String> exL = _OHexclusionHash.get(l0Node.getLOverhang());
+                        exL.addAll(exclusiveL);
+                    } else {
+                        _OHexclusionHash.put(l0Node.getLOverhang(), exclusiveL);
+                    }
 
-                if (_stageDirectionAssignHash.containsKey(level)) {
-                    directionHash = _stageDirectionAssignHash.get(level);
-                } else {
-                    directionHash = new HashMap<String, ArrayList<RNode>>();
+                    //Add to exclusion hash for the right OH
+                    if (_OHexclusionHash.containsKey(l0Node.getROverhang())) {
+                        HashSet<String> exR = _OHexclusionHash.get(l0Node.getROverhang());
+                        exR.addAll(exclusiveR);
+                    } else {
+                        _OHexclusionHash.put(l0Node.getROverhang(), exclusiveR);
+                    }
+
+                    //Determine direction                
+                    String l0Direction = rootDir.get(0);
+                    if (l0Node.getComposition().size() == 1) {
+                        ArrayList<String> l0Dir = new ArrayList<String>();
+                        l0Dir.add(l0Direction);
+                        l0Node.setDirection(l0Dir);
+                    }
+                    int size = l0Node.getDirection().size();
+                    rootDir.subList(0, size).clear();
+
+                    //Enter node into stage direction hash
+                    HashMap<String, ArrayList<RNode>> directionHash;
+                    ArrayList<RNode> nodeList;
+
+                    if (_stageDirectionAssignHash.containsKey(level)) {
+                        directionHash = _stageDirectionAssignHash.get(level);
+                    } else {
+                        directionHash = new HashMap<String, ArrayList<RNode>>();
+                    }
+
+                    if (directionHash.containsKey(l0Direction)) {
+                        nodeList = directionHash.get(l0Direction);
+                    } else {
+                        nodeList = new ArrayList<RNode>();
+                    }
+
+                    nodeList.add(l0Node);
+                    directionHash.put(l0Direction, nodeList);
+                    _stageDirectionAssignHash.put(level, directionHash);
                 }
-
-                if (directionHash.containsKey(l0Direction)) {
-                    nodeList = directionHash.get(l0Direction);
-                } else {
-                    nodeList = new ArrayList<RNode>();
-                }
-
-                nodeList.add(l0Node);
-                directionHash.put(l0Direction, nodeList);
-                _stageDirectionAssignHash.put(level, directionHash);
             }
         }
         
@@ -835,7 +864,7 @@ public class Modularity extends Partitioning {
     /*
      * For each of the graphs in the solution set, create a hash of mapping all overhang positions to possible overhang matches in the partLibrary based on composition
      */    
-    private HashMap<String, HashSet<String>> initializPartOHHashes (ArrayList<RGraph> graphs) {
+    private HashMap<String, HashSet<String>> initializePartOHHashes (ArrayList<RGraph> graphs) {
         
         _partKeys = new HashSet<String>(); //concatentation of composition Overhang and direction seen in the partLibrary
         HashMap<String, HashSet<String>> nodeOHpartOHHash = new HashMap<String, HashSet<String>>(); //key: node overhang, value: set of all library part overhangs that match composition
