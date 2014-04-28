@@ -69,10 +69,6 @@ public class Vector {
         return level;
     }
 
-    public String getSequence() {
-        return this.sequence;
-    }
-
     public String getResistance() {
         String toReturn = "";
         for (String tag : this.searchTags) {

@@ -39,7 +39,7 @@ public class RGoldenGate extends RGeneral {
         HashMap<String, RGraph> partHash = ClothoReader.partImportClotho(goalParts, partLibrary, discouraged, recommended);
 
         //Put all parts into hash for mgp algorithm            
-        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(gps, true);
+        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(gps);
 
         //Run hierarchical Raven Algorithm
         ArrayList<RGraph> optimalGraphs = createAsmGraph_mgp(gpsNodes, partHash, required, recommended, forbidden, discouraged, efficiencies, false);
@@ -79,8 +79,8 @@ public class RGoldenGate extends RGeneral {
             if (vector != null) {                
                 RVector newVector = new RVector(composition.get(0), composition.get(composition.size()-1), root.getStage(), vector.getName(), null);
                 root.setVector(newVector);              
-                root.setLOverhang(vector.getName() + "_L");
-                root.setROverhang(vector.getName() + "_R");
+                root.setLOverhang(vector.getName() + "_R");
+                root.setROverhang(vector.getName() + "_L");
             } else {
                 root.setLOverhang(composition.get(composition.size() - 1));
                 root.setROverhang(composition.get(0));
@@ -188,7 +188,7 @@ public class RGoldenGate extends RGeneral {
     /*
      * Determine GoldenGate Fusion Sites
      */
-    public static String[] getFusionSites(RNode node, RNode root, Collector coll) {
+    public static HashMap<RNode, String[]> getFusionSites(RNode node, RNode root, Collector coll, HashMap<RNode, String[]> fusionSites) {
         
         //Initialize primer parameters
         String[] sites = new String[2];
@@ -199,66 +199,128 @@ public class RGoldenGate extends RGeneral {
         boolean missingSequence = false;
         boolean missingRightSequence = false;
         
-        Part currentPart = coll.getPart(node.getUUID(), true);
-        Part leftNeighbor;
-        Part rightNeighbor;
         Part rootPart = coll.getPart(root.getUUID(), true);
         ArrayList<Part> composition = rootPart.getComposition();
-
-        String currentSeq = currentPart.getSeq();
-        ArrayList<String> direction = node.getDirection();
+        Part leftNeighbor;
+        Part rightNeighbor;
+        String currentSeq = "";
         
-        //Reverse complement sequences that are on the reverse strand
-        if ("-".equals(direction.get(0))) {
-            currentSeq = PrimerDesign.reverseComplement(currentSeq);
-        }
-        
-        if (currentPart.isBasic()) {
-                    
-            //Get neighbor sequences
-            int indexOf = composition.indexOf(currentPart);
-            if (indexOf == 0) {
-                leftNeighbor = composition.get(composition.size() - 1);
-                rightNeighbor = composition.get(indexOf + 1);
-                rSeq = rightNeighbor.getSeq();
-                lSeq = leftNeighbor.getSeq();
-            } else if (indexOf == composition.size() - 1) {
-                rightNeighbor = composition.get(0);
-                leftNeighbor = composition.get(indexOf - 1);
-                rSeq = rightNeighbor.getSeq();
-                lSeq = leftNeighbor.getSeq();
-            } else {
-                rightNeighbor = composition.get(indexOf + 1);
-                leftNeighbor = composition.get(indexOf - 1);
-                rSeq = rightNeighbor.getSeq();
-                lSeq = leftNeighbor.getSeq();
+        //Edge case where the node in question is the root node
+        if (node == root) {
+            
+            String seq = "";
+            ArrayList<String> tags = new ArrayList<String>();
+            String type = "";
+            tags.add("LO: " + node.getLOverhang());
+            tags.add("RO: " + node.getROverhang());
+            tags.add("Direction: " + node.getDirection());
+            tags.add("Scars: " + node.getScars());
+            ArrayList<Part> allPartsWithName = coll.getAllPartsWithName(node.getName(), true);
+            if (!allPartsWithName.isEmpty()) {
+                seq = allPartsWithName.get(0).getSeq();
+                for (int i = 0; i < allPartsWithName.size(); i++) {
+                    type = allPartsWithName.get(i).getType();
+                    if (!type.equalsIgnoreCase("plasmid")) {
+                        break;
+                    }
+                }
             }
-        } else {
-            
-            Part first = currentPart.getComposition().get(0);
-            int indexOfFirst = composition.indexOf(first);
-            Part last = currentPart.getComposition().get(currentPart.getComposition().size()-1);
-            int indexOfLast = composition.indexOf(last);
-       
-            //Get neighbor sequences of beginning of part
-            if (indexOfFirst == 0) {
-                leftNeighbor = composition.get(composition.size() - 1);
-                lSeq = leftNeighbor.getSeq();
-            } else {
-                leftNeighbor = composition.get(indexOfFirst - 1);
-                lSeq = leftNeighbor.getSeq();
-            }        
-            
-            //Get neighbor sequences of beginning of part
-            if (indexOfLast == composition.size() - 1) {
-                rightNeighbor = composition.get(0);
-                rSeq = rightNeighbor.getSeq();
-            } else {
-                rightNeighbor = composition.get(indexOfFirst + 1);
-                rSeq = rightNeighbor.getSeq();
-            }      
-        }
+            tags.add("Type: " + type);
+            Part currentPart = coll.getExactPart(node.getName(), seq, node.getComposition(), tags, true);
+            currentSeq = currentPart.getSeq();
+            ArrayList<String> direction = node.getDirection();
 
+            //Reverse complement sequences that are on the reverse strand
+            if ("-".equals(direction.get(0))) {
+                currentSeq = PrimerDesign.reverseComplement(currentSeq);
+            }
+            
+            Vector vector = coll.getVector(node.getVector().getUUID(), true);
+            rSeq = vector.getSeq();
+            lSeq = vector.getSeq();
+        
+        } else {
+
+            String seq = "";
+            ArrayList<String> tags = new ArrayList<String>();
+            String type = "";
+            tags.add("LO: " + node.getLOverhang());
+            tags.add("RO: " + node.getROverhang());
+            tags.add("Direction: " + node.getDirection());
+            tags.add("Scars: " + node.getScars());
+            ArrayList<Part> allPartsWithName = coll.getAllPartsWithName(node.getName(), true);
+            if (!allPartsWithName.isEmpty()) {
+                seq = allPartsWithName.get(0).getSeq();
+                for (int i = 0; i < allPartsWithName.size(); i++) {
+                    type = allPartsWithName.get(i).getType();
+                    if (!type.equalsIgnoreCase("plasmid")) {
+                        break;
+                    }
+                }
+            }
+            tags.add("Type: " + type);
+            Part currentPart = coll.getExactPart(node.getName(), seq, node.getComposition(), tags, true);
+            currentSeq = currentPart.getSeq();
+            ArrayList<String> direction = node.getDirection();
+
+            //Reverse complement sequences that are on the reverse strand
+            if ("-".equals(direction.get(0))) {
+                currentSeq = PrimerDesign.reverseComplement(currentSeq);
+            }
+
+            if (currentPart.isBasic()) {
+
+                //Get neighbor sequences
+                int indexOf = composition.indexOf(currentPart);
+                
+                //If this part is the left-most library part, the vector is the left neighbor 
+                if (indexOf == 0) {
+                    Vector vector = coll.getVector(node.getVector().getUUID(), true);
+                    rightNeighbor = composition.get(indexOf + 1);
+                    rSeq = rightNeighbor.getSeq();
+                    lSeq = vector.getSeq();
+                    
+                //If this part is the right-most library part, the vector is the right neighbor    
+                } else if (indexOf == composition.size() - 1) {
+                    Vector vector = coll.getVector(node.getVector().getUUID(), true);
+                    leftNeighbor = composition.get(indexOf - 1);
+                    rSeq = vector.getSeq();
+                    lSeq = leftNeighbor.getSeq();
+                
+                //Otherwise neighbors are adjacent parts
+                } else {
+                    rightNeighbor = composition.get(indexOf + 1);
+                    leftNeighbor = composition.get(indexOf - 1);
+                    rSeq = rightNeighbor.getSeq();
+                    lSeq = leftNeighbor.getSeq();
+                }
+            } else {
+
+                Part first = currentPart.getComposition().get(0);
+                int indexOfFirst = composition.indexOf(first);
+                Part last = currentPart.getComposition().get(currentPart.getComposition().size() - 1);
+                int indexOfLast = composition.indexOf(last);
+
+                //Get neighbor sequences of beginning of part
+                if (indexOfFirst == 0) {
+                    leftNeighbor = composition.get(composition.size() - 1);
+                    lSeq = leftNeighbor.getSeq();
+                } else {
+                    leftNeighbor = composition.get(indexOfFirst - 1);
+                    lSeq = leftNeighbor.getSeq();
+                }
+
+                //Get neighbor sequences of beginning of part
+                if (indexOfLast == composition.size() - 1) {
+                    rightNeighbor = composition.get(0);
+                    rSeq = rightNeighbor.getSeq();
+                } else {
+                    rightNeighbor = composition.get(indexOfFirst + 1);
+                    rSeq = rightNeighbor.getSeq();
+                }
+            }
+        }
+        
         //Look to see if there are blank sequences for the right or left part
         String LO = "";
         String RO = "";
@@ -290,7 +352,8 @@ public class RGoldenGate extends RGeneral {
             sites[1] = RO;
         }
         
-        return sites;
+        fusionSites.put(node, sites);    
+        return fusionSites;
     }
     
     /**
@@ -315,8 +378,8 @@ public class RGoldenGate extends RGeneral {
 
         String fwdHomology;
         String revHomology;
-        String partPrimerPrefix = "nn";
-        String partPrimerSuffix = "nn";
+        String partPrimerPrefix = "at";
+        String partPrimerSuffix = "gt";
         String fwdEnzymeRecSite1 = "gaagac";
         String revEnzymeRecSite1 = "gtcttc";
 
@@ -329,17 +392,17 @@ public class RGoldenGate extends RGeneral {
                 revHomology = seq.substring(Math.max(0, seq.length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, PrimerDesign.reverseComplement(seq), true, true)));
             }
 
-            forwardOligoSequence = partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0] + fwdHomology;
-            reverseOligoSequence = PrimerDesign.reverseComplement(revHomology + fusionSites[1] + "ag" + revEnzymeRecSite1 + partPrimerSuffix);
+            forwardOligoSequence = partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0].toUpperCase() + fwdHomology;
+            reverseOligoSequence = PrimerDesign.reverseComplement(revHomology + fusionSites[1].toUpperCase() + "ag" + revEnzymeRecSite1 + partPrimerSuffix);
         } else {
             if (seq.equals("")) {
                 fwdHomology = "[ PART " + currentPart.getName() + " FORWARD HOMOLOGY REGION ]";
                 revHomology = "[ PART " + currentPart.getName() + " REVERSE HOMOLOGY REGION ]";
-                forwardOligoSequence = partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0] + fwdHomology + fusionSites[1] + "gt" + revEnzymeRecSite1 + partPrimerSuffix;
-                reverseOligoSequence = PrimerDesign.reverseComplement(fusionSites[1] + "ag" + revEnzymeRecSite1 + partPrimerSuffix) + revHomology + PrimerDesign.reverseComplement(partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0]);
+                forwardOligoSequence = partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0].toUpperCase() + fwdHomology;
+                reverseOligoSequence = PrimerDesign.reverseComplement(fusionSites[1].toUpperCase() + "ag" + revEnzymeRecSite1 + partPrimerSuffix) + revHomology;
             } else {
                 fwdHomology = seq;
-                forwardOligoSequence = partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0] + fwdHomology + fusionSites[1] + "ag" + revEnzymeRecSite1 + partPrimerSuffix;
+                forwardOligoSequence = partPrimerPrefix + fwdEnzymeRecSite1 + "gt" + fusionSites[0].toUpperCase() + fwdHomology + fusionSites[1].toUpperCase() + "ag" + revEnzymeRecSite1 + partPrimerSuffix;
                 reverseOligoSequence = PrimerDesign.reverseComplement(forwardOligoSequence);
             }
         }
@@ -348,9 +411,8 @@ public class RGoldenGate extends RGeneral {
         return oligos;
     }
 
-    public static String[] generateVectorPrimers(RVector vector, Collector coll) {
+    public static String[] generateVectorPrimers(RVector vector, String[] fusionSites) {
 
-        HashMap<String, String> overhangVariableSequenceHash = PrimerDesign.getModularOHseqs();
         String vectorPrimerPrefix = "actagtg";
         String vectorPrimerSuffix = "tactagt";
         String fwdEnzymeRecSite1 = "gaagac";
@@ -359,18 +421,18 @@ public class RGoldenGate extends RGeneral {
         String revEnzymeRecSite2 = "gagacc";
 
         String[] oligos = new String[2];
-
+        
         //Level 0, 2, 4, 6, etc. vectors
         String forwardOligoSequence;
         String reverseOligoSequence;
         if (vector.getLevel() % 2 == 0) {
-            forwardOligoSequence = vectorPrimerPrefix + fwdEnzymeRecSite2 + "a" + "nnnn" + "at" + revEnzymeRecSite1 + "tgcaccatatgcggtgtgaaatac";
-            reverseOligoSequence = PrimerDesign.reverseComplement("ttaatgaatcggccaacgcgcggg" + fwdEnzymeRecSite1 + "gt" + "nnnn" + "a" + revEnzymeRecSite2 + vectorPrimerSuffix);
+            forwardOligoSequence = vectorPrimerPrefix + fwdEnzymeRecSite2 + "a" + fusionSites[0].toUpperCase() + "at" + revEnzymeRecSite1 + "tgcaccatatgcggtgtgaaatac";
+            reverseOligoSequence = PrimerDesign.reverseComplement("ttaatgaatcggccaacgcgcggg" + fwdEnzymeRecSite1 + "gt" + fusionSites[1].toUpperCase() + "a" + revEnzymeRecSite2 + vectorPrimerSuffix);
 
             //Level 1, 3, 5, 7, etc. vectors
         } else {
-            forwardOligoSequence = vectorPrimerPrefix + fwdEnzymeRecSite1 + "at" + "nnnn" + "a" + revEnzymeRecSite2 + "tgcaccatatgcggtgtgaaatac";
-            reverseOligoSequence = PrimerDesign.reverseComplement("ttaatgaatcggccaacgcgcggg" + fwdEnzymeRecSite2 + "t" + "nnnn" + "at" + revEnzymeRecSite1 + vectorPrimerSuffix);
+            forwardOligoSequence = vectorPrimerPrefix + fwdEnzymeRecSite1 + "at" + fusionSites[0].toUpperCase() + "a" + revEnzymeRecSite2 + "tgcaccatatgcggtgtgaaatac";
+            reverseOligoSequence = PrimerDesign.reverseComplement("ttaatgaatcggccaacgcgcggg" + fwdEnzymeRecSite2 + "t" + fusionSites[1].toUpperCase() + "at" + revEnzymeRecSite1 + vectorPrimerSuffix);
         }
 
         oligos[0]=forwardOligoSequence;

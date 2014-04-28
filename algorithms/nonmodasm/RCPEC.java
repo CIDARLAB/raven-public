@@ -38,7 +38,7 @@ public class RCPEC extends RGeneral {
         HashMap<String, RGraph> partHash = ClothoReader.partImportClotho(goalParts, partLibrary, discouraged, recommended);
 
         //Put all parts into hash for mgp algorithm            
-        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(gps, true);
+        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(gps);
 
         //Run hierarchical Raven Algorithm
         ArrayList<RGraph> optimalGraphs = createAsmGraph_mgp(gpsNodes, partHash, required, recommended, forbidden, discouraged, efficiencies, false);
@@ -66,22 +66,23 @@ public class RCPEC extends RGeneral {
             RVector vector = stageRVectors.get(root.getStage() % stageRVectors.size());
             
             ArrayList<String> composition = root.getComposition();
+            ArrayList<String> direction = root.getDirection();
             
-            //Assign overhangs of vector and goal part if a vector exists
-            if (vector != null) {                
-                RVector newVector = new RVector(composition.get(0), composition.get(composition.size()-1), root.getStage(), vector.getName(), null);
-                root.setVector(newVector);              
-                root.setLOverhang(vector.getName() + "_L");
-                root.setROverhang(vector.getName() + "_R");
-            } else {
-                root.setLOverhang(composition.get(composition.size() - 1));
-                root.setROverhang(composition.get(0));
-            }
-                        
+            //Assign overhangs of vector and goal part if a vector exists              
+            RVector newVector = new RVector(composition.get(0) + direction.get(0), composition.get(composition.size() - 1) + direction.get(composition.size() - 1), root.getStage(), vector.getName(), null);
+            root.setVector(newVector);
+            root.setLOverhang(vector.getName() + "_R");
+            root.setROverhang(vector.getName() + "_L");
+
             ArrayList<RNode> neighbors = root.getNeighbors();
             ArrayList<RNode> l0nodes = new ArrayList<RNode>();
             _rootBasicNodeHash.put(root, l0nodes);
-            assignOverhangsHelper(root, neighbors, root, stageRVectors);
+
+            //Make a new dummy root node to accomodate overhang assignment
+            RNode fakeRootClone = root.clone();
+            RVector fakeRootVec = new RVector(vector.getName() + "_R", vector.getName() + "_L", root.getStage(), "dummyVec", null);
+            fakeRootClone.setVector(fakeRootVec);
+            assignOverhangsHelper(fakeRootClone, neighbors, root, stageRVectors);
         }
         
         //
@@ -132,34 +133,38 @@ public class RCPEC extends RGeneral {
             
             if (j == 0) {
                 ArrayList<String> nextComp = children.get(j + 1).getComposition();
-
-                if (vector != null) {
-                    RVector newVector = new RVector(parent.getLOverhang(), nextComp.get(0), child.getStage(), vector.getName(), null);
-                    child.setVector(newVector);
-                }
+                ArrayList<String> nextDir = children.get(j + 1).getDirection();
                 child.setROverhang(nextComp.get(0));
                 child.setLOverhang(parent.getLOverhang());
+                
+                if (vector != null && child.getStage() != 0) {
+                    RVector newVector = new RVector(parent.getVector().getLOverhang(), nextComp.get(0) + nextDir.get(0), child.getStage(), vector.getName(), null);
+                    child.setVector(newVector);
+                }          
 
             } else if (j == children.size() - 1) {
                 ArrayList<String> prevComp = children.get(j - 1).getComposition();
-
-                if (vector != null) {
-                    RVector newVector = new RVector(prevComp.get(prevComp.size() - 1), parent.getROverhang(), child.getStage(), vector.getName(), null);
-                    child.setVector(newVector);
-                }
+                ArrayList<String> prevDir = children.get(j - 1).getDirection();
                 child.setLOverhang(prevComp.get(prevComp.size() - 1));
                 child.setROverhang(parent.getROverhang());
-
+                
+                if (vector != null && child.getStage() != 0) {
+                    RVector newVector = new RVector(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1), parent.getVector().getROverhang(), child.getStage(), vector.getName(), null);
+                    child.setVector(newVector);
+                }
+                
             } else {
                 ArrayList<String> nextComp = children.get(j + 1).getComposition();
                 ArrayList<String> prevComp = children.get(j - 1).getComposition();
-
-                if (vector != null) {
-                    RVector newVector = new RVector(prevComp.get(prevComp.size() - 1), nextComp.get(0), child.getStage(), vector.getName(), null);
-                    child.setVector(newVector);
-                }
+                ArrayList<String> nextDir = children.get(j + 1).getDirection();
+                ArrayList<String> prevDir = children.get(j - 1).getDirection();
                 child.setLOverhang(prevComp.get(prevComp.size() - 1));
                 child.setROverhang(nextComp.get(0));
+                
+                if (vector != null && child.getStage() != 0) {
+                    RVector newVector = new RVector(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1), nextComp.get(0) + nextDir.get(0), child.getStage(), vector.getName(), null);
+                    child.setVector(newVector);
+                }               
             }
 
             if (child.getStage() == 0) {

@@ -31,7 +31,7 @@ public class RBioBricks extends RGeneral {
         HashMap<String, RGraph> partHash = ClothoReader.partImportClotho(goalParts, partLibrary, discouraged, recommended);
 
         //Put all parts into hash for mgp algorithm            
-        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(goalPartsVectors, true);
+        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(goalPartsVectors);
 
         //Run hierarchical Raven Algorithm
         ArrayList<RGraph> optimalGraphs = createAsmGraph_mgp(gpsNodes, partHash, required, recommended, forbidden, discouraged, null, true);
@@ -203,8 +203,13 @@ public class RBioBricks extends RGeneral {
             }
         }
 
-        parent.setScars(scars);
-        return scars;
+        //Keep scars for re-used parts with scars
+        if (!scars.isEmpty()) {
+            parent.setScars(scars);
+            return scars;
+        } else {
+            return parent.getScars();
+        } 
     }
 
     public static boolean validateOverhangs(ArrayList<RGraph> graphs) {

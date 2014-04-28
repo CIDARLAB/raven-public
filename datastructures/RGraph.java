@@ -68,6 +68,9 @@ public class RGraph {
         clone._modularityFactor = this._modularityFactor;
         clone._efficiencyArray = this._efficiencyArray;
         clone._reactions = this._reactions;
+        for (RGraph subGraph : this._subGraphs) {
+            clone.addSubgraph(subGraph.clone());
+        }
         return clone;
     }
 
@@ -322,6 +325,7 @@ public class RGraph {
                 }
 
                 if (!currentVectorKey.equals("")) {
+                    
                     //If there is a vector present on a stage zero node, and both part and vector do not yet exist ,it is considered a step 
                     if (current.getStage() == 0) {
                         if (!seenVectorKeys.contains(currentVectorKey) || !seenPartKeys.contains(currentPartKey)) {
@@ -1079,7 +1083,7 @@ public class RGraph {
         //Assign right overhang                
         if (RO != null) {
             if (!RO.isEmpty()) {
-                pigeonLine.append("3 ").append(RO).append("\n");
+                pigeonLine.append("<5 ").append(RO).append("\n");
             }
         }
 //        pigeonLine.append("5 ").append(RO).append("\n");

@@ -36,6 +36,9 @@ public class Part {
     public static Part generateBasic(String name, String sequence, Part composition) {
         Part newBasic = new Part();
         newBasic.name = name;
+//        if (sequence == null) {
+//            sequence = "";
+//        }
         newBasic.sequence = sequence;
         newBasic.isComposite = false;
         newBasic.composition = new ArrayList<Part>();
@@ -157,6 +160,17 @@ public class Part {
         }
         return toReturn;
     }
+    
+    public ArrayList<String> getScars() {
+        ArrayList<String> toReturn = new ArrayList();
+        for (String tag : this.searchTags) {
+            if (tag.startsWith("Scars:")) {
+                toReturn = new ArrayList(Arrays.asList(tag.substring(8, tag.length() - 1).split(",")));
+            }
+        }
+        return toReturn;
+    }
+    
     //Fields
     private ArrayList<Part> composition;
     private String name;

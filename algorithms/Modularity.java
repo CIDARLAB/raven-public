@@ -418,10 +418,7 @@ public class Modularity extends Partitioning {
                 l0nodes.add(child);
                 _rootBasicNodeHash.put(root, l0nodes);
             }
-        }
-        
-        
-
+        }        
         return count;
     }
     
@@ -1463,12 +1460,12 @@ public class Modularity extends Partitioning {
         }
         
         //If the stageVector hash is empty, make a new default vector
-        if (stageRVectors.size() == 1) {
-            if (stageRVectors.get(1) == null) {
-                stageRVectors.put(0, new RVector("", "", 0, "pSB1A2", null));
-                stageRVectors.put(1, new RVector("", "", 0, "pSB1K3", null));
-            }
-        }
+//        if (stageRVectors.size() == 1) {
+//            if (stageRVectors.get(1) == null) {
+//                stageRVectors.put(0, new RVector("", "", 0, "pSB1A2", null));
+//                stageRVectors.put(1, new RVector("", "", 0, "pSB1K3", null));
+//            }
+//        }
         
         //Assign final overhangs for all graphs
         for (RGraph graph : graphs) {
@@ -1575,7 +1572,7 @@ public class Modularity extends Partitioning {
     private HashMap<RNode, ArrayList<RNode>> _rootBasicNodeHash; //key: root node, value: ordered arrayList of level0 nodes in graph that root node belongs to
     private HashSet<RNode> _allNodes; //all nodes in all graphs
     
-    private HashMap<String, HashSet<String>> _OHexclusionHash; //key: parent node, value: all overhangs that have been seen in this step
+    protected HashMap<String, HashSet<String>> _OHexclusionHash; //key: parent node, value: all overhangs that have been seen in this step
     private HashMap<String, ArrayList<String>> _typeROHHash; //key: part type, value: all right overhangs seen for this part type
     private HashMap<String, ArrayList<String>> _typeLOHHash; //key: part type, value: all left overhangs seen for this part type
     private HashMap<String, String> _firstPassSecondPassHash; //key: first pass overhang, value: second pass overhang
