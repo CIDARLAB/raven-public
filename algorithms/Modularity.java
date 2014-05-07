@@ -923,22 +923,30 @@ public class Modularity extends Partitioning {
             _partKeys.add(libraryPart.getStringComposition() + "|" + libraryPart.getLeftOverhang() + "|" + libraryPart.getRightOverhang() + "|" + libraryPart.getDirections());
             String composition = libraryPart.getStringComposition().toString();
 
-            //If the library part composition is seen in the left hash, add it or put a new entry for the composition
-            if (partCompLHash.containsKey(composition)) {
-                partCompLHash.get(composition).add(libraryPart.getLeftOverhang());
-            } else {
-                HashSet<String> toAddLeft = new HashSet();
-                toAddLeft.add(libraryPart.getLeftOverhang());
-                partCompLHash.put(composition, toAddLeft);
+            //Only add MoClo overhangs
+            if (libraryPart.getLeftOverhang().matches("[*]?\\d+")) {
+
+                //If the library part composition is seen in the left hash, add it or put a new entry for the composition
+                if (partCompLHash.containsKey(composition)) {
+                    partCompLHash.get(composition).add(libraryPart.getLeftOverhang());
+                } else {
+                    HashSet<String> toAddLeft = new HashSet();
+                    toAddLeft.add(libraryPart.getLeftOverhang());
+                    partCompLHash.put(composition, toAddLeft);
+                }
             }
 
-            //If the library part composition is seen in the right hash, add it or put a new entry for the composition    
-            if (partCompRHash.containsKey(composition)) {
-                partCompRHash.get(composition).add(libraryPart.getRightOverhang());
-            } else {
-                HashSet<String> toAddRight = new HashSet();
-                toAddRight.add(libraryPart.getRightOverhang());
-                partCompRHash.put(composition, toAddRight);
+            //Only add MoClo overhangs
+            if (libraryPart.getRightOverhang().matches("[*]?\\d+")) {
+
+                //If the library part composition is seen in the right hash, add it or put a new entry for the composition    
+                if (partCompRHash.containsKey(composition)) {
+                    partCompRHash.get(composition).add(libraryPart.getRightOverhang());
+                } else {
+                    HashSet<String> toAddRight = new HashSet();
+                    toAddRight.add(libraryPart.getRightOverhang());
+                    partCompRHash.put(composition, toAddRight);
+                }
             }
         }
         

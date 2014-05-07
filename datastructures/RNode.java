@@ -120,6 +120,41 @@ public class RNode {
         }
     }
     
+    /** Merge nodes with part sequences that are too small with the current node **/
+    public RNode mergeNodes(RNode smallNode, RNode parent, String thisSeq) {
+        
+        //Make new merged node
+        RNode mergedNode = this.clone();
+        mergedNode._lOverhang = smallNode._lOverhang;
+        mergedNode._name = smallNode._name + "_" + this._name;
+        
+        ArrayList<String> mergedType = new ArrayList<String>();
+        mergedType.addAll(smallNode._type);
+        mergedType.addAll(this._type);
+        mergedNode._type = mergedType;
+        
+        ArrayList<String> mergedComp = new ArrayList<String>();
+        mergedComp.addAll(smallNode._composition);
+        mergedComp.addAll(this._composition);
+        mergedNode._composition = mergedComp;
+        
+        ArrayList<String> mergedDir = new ArrayList<String>();
+        mergedDir.addAll(smallNode._direction);
+        mergedDir.addAll(this._direction);
+        mergedNode._direction = mergedDir;
+        
+        mergedNode._specialSeq = smallNode._specialSeq + thisSeq;
+        mergedNode._PCRSeq = thisSeq;
+
+        //Adjust neighbor nodes
+        parent.removeNeighbor(smallNode);
+        parent.replaceNeighbor(this, mergedNode);
+        mergedNode._neighbors.clear();
+        mergedNode._neighbors.add(parent);
+
+        return mergedNode;
+    }
+    
     /**************************************************************************
      * 
      * GETTER AND SETTER METHODS
@@ -215,7 +250,27 @@ public class RNode {
         return _scars;
     }
     
-   /** Get node keys for either forward or reverse direction **/
+    /** Get the special sequence - only the case for merged nodes **/
+    public String getSpecialSeq() {
+        return _specialSeq;
+    }
+    
+    /** Get the special PCR sequence - only the case for merged nodes **/
+    public String getPCRSeq() {
+        return _PCRSeq;
+    }
+    
+    /** Get the special left flanking sequence - only the case for merged nodes **/
+    public String getLeftSeq() {
+        return _lSeq;
+    }
+    
+    /** Get the special right flanking sequence - only the case for merged nodes **/
+    public String getRightSeq() {
+        return _rSeq;
+    }
+    
+    /** Get node keys for either forward or reverse direction **/
     public String getNodeKey(String dir) {
         
         //Forward key information
@@ -371,6 +426,26 @@ public class RNode {
         _scars = scars;
     }
     
+    /** Set a special sequence for a merged node **/
+    public void setSpecialSeq(String seq) {
+        _specialSeq = seq;
+    }
+    
+    /** Set a special sequence for a merged node **/
+    public void setPCRSeq(String seq) {
+        _PCRSeq = seq;
+    }
+    
+    /** Set a special sequence for a merged node **/
+    public void setLeftSeq(String seq) {
+        _lSeq = seq;
+    }
+    
+    /** Set a special sequence for a merged node **/
+    public void setRightSeq(String seq) {
+        _rSeq = seq;
+    }
+    
     //FIELDS
     private int _successCnt;
     private int _failureCnt;
@@ -388,6 +463,10 @@ public class RNode {
     private String _rOverhang;
     private RVector _vector;
     private String _name;
+    private String _specialSeq;
+    private String _PCRSeq;
+    private String _lSeq;
+    private String _rSeq;
     private int _nodeID;
     private int _stage;
     private static int _nodeCount = 0;

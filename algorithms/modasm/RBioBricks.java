@@ -25,10 +25,9 @@ public class RBioBricks extends RGeneral {
 
         //Try-Catch block around wrapper method
         _maxNeighbors = 2;
-        ArrayList<Part> goalParts = new ArrayList<Part>(goalPartsVectors);
 
         //Initialize part hash and vector set
-        HashMap<String, RGraph> partHash = ClothoReader.partImportClotho(goalParts, partLibrary, discouraged, recommended);
+        HashMap<String, RGraph> partHash = ClothoReader.partImportClotho(partLibrary, discouraged, recommended);
 
         //Put all parts into hash for mgp algorithm            
         ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(goalPartsVectors);
@@ -245,49 +244,75 @@ public class RBioBricks extends RGeneral {
     /**
      * Generation of new BioBricks primers for parts *
      */
-    public static String[] generatePartPrimers(RNode node, Collector coll, Double meltingTemp, Integer targetLength) {
+    public static String[] generatePartPrimers(RNode node, Collector coll, Double meltingTemp, Integer targetLength, Integer minPCRLength, Integer maxPrimerLength) {
 
         //initialize primer parameters
         String[] oligos = new String[2];
         String partPrimerPrefix = "gaattcgcggccgcttctagag";
         String partPrimerSuffix = "tactagtagcggccgctgcag";
         String partPrimerPrefixAlt = "gaattcgcggccgcttctag";
-        String forwardOligoSequence = "";
-        String reverseOligoSequence = "";
+        String forwardOligoSequence;
+        String reverseOligoSequence;
 
         Part currentPart = coll.getPart(node.getUUID(), true);
         String seq = currentPart.getSeq();
-
-        ArrayList<String> direction = node.getDirection();
-        if ("-".equals(direction.get(0))) {
-            seq = PrimerDesign.reverseComplement(seq);
-        }
         ArrayList<String> type = node.getType();
-        String fwdHomology = "";
-        String revHomology = "";
-        if (type.get(0).equals("gene") || type.get(0).equals("reporter")) {
+        String fwdHomology;
+        String revHomology;
+        
+        //If the part is sufficiently large
+        if (seq.length() > minPCRLength) {
+            
+            //Special case primers for coding sequences
+            if (type.get(0).equals("gene") || type.get(0).equals("reporter")) {
+                fwdHomology = seq.substring(0, Math.min(seq.length(), PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, maxPrimerLength - 20, minPCRLength, seq, true)));
+                revHomology = seq.substring(Math.max(0, currentPart.getSeq().length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, maxPrimerLength - 21, minPCRLength, PrimerDesign.reverseComplement(seq), true)));
+                forwardOligoSequence = partPrimerPrefixAlt + fwdHomology;
+                reverseOligoSequence = PrimerDesign.reverseComplement(revHomology + partPrimerSuffix);
 
-            if (seq.equals("")) {
-                fwdHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
-                revHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
             } else {
-                fwdHomology = seq.substring(0, Math.min(seq.length(), PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, seq, true, false)));
-                revHomology = PrimerDesign.reverseComplement(seq.substring(Math.max(0, currentPart.getSeq().length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, PrimerDesign.reverseComplement(seq), true, false))));
+                if (seq.equals("")) {
+                    fwdHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
+                    revHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
+                } else {
+                    fwdHomology = seq.substring(0, Math.min(seq.length(), PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, maxPrimerLength - 22, minPCRLength, seq, true)));
+                    revHomology = seq.substring(Math.max(0, currentPart.getSeq().length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, maxPrimerLength - 21, minPCRLength, PrimerDesign.reverseComplement(seq), true)));
+                }
+                forwardOligoSequence = partPrimerPrefix + fwdHomology;
+                reverseOligoSequence = PrimerDesign.reverseComplement(revHomology + partPrimerSuffix);
+
             }
-            forwardOligoSequence = partPrimerPrefixAlt + fwdHomology;
-            reverseOligoSequence = PrimerDesign.reverseComplement(partPrimerSuffix)+revHomology;
+        
+        //Otherwise make annealing primers or synthesize
         } else {
-            if (seq.equals("")) {
-                fwdHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
-                revHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
-            } else {
-                fwdHomology = seq.substring(0, Math.min(seq.length(), PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, seq, true, false)));
-                revHomology = PrimerDesign.reverseComplement(seq.substring(Math.max(0, currentPart.getSeq().length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, PrimerDesign.reverseComplement(seq), true, false))));
-            }
-            forwardOligoSequence = partPrimerPrefix + fwdHomology;
-            reverseOligoSequence = PrimerDesign.reverseComplement(partPrimerSuffix)+revHomology;
+            if (type.get(0).equals("gene") || type.get(0).equals("reporter")) {
 
+                if (seq.equals("")) {
+                    fwdHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
+                    revHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
+                    forwardOligoSequence = partPrimerPrefixAlt + fwdHomology;
+                    reverseOligoSequence = PrimerDesign.reverseComplement(partPrimerSuffix) + revHomology;
+                } else {
+                    fwdHomology = seq;
+                    forwardOligoSequence = partPrimerPrefixAlt + fwdHomology + partPrimerSuffix;
+                    reverseOligoSequence = PrimerDesign.reverseComplement(forwardOligoSequence);
+                }
+            
+            } else {
+                
+                if (seq.equals("")) {
+                    fwdHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
+                    revHomology = "[ PART " + currentPart.getName() + " HOMOLOGY REGION ]";
+                    forwardOligoSequence = partPrimerPrefix + fwdHomology;
+                    reverseOligoSequence = PrimerDesign.reverseComplement(partPrimerSuffix) + revHomology;
+                } else {
+                    fwdHomology = seq;
+                    forwardOligoSequence = partPrimerPrefix + fwdHomology + partPrimerSuffix;
+                    reverseOligoSequence = PrimerDesign.reverseComplement(forwardOligoSequence);
+                }
+            }
         }
+
         oligos[0]=forwardOligoSequence;
         oligos[1]=reverseOligoSequence;
 
@@ -297,7 +322,7 @@ public class RBioBricks extends RGeneral {
     /**
      * Generation of new BioBricks primers for parts *
      */
-    public static String[] generateVectorPrimers(RVector vector, Collector coll, Double meltingTemp, Integer targetLength) {
+    public static String[] generateVectorPrimers(RVector vector, Collector coll, Double meltingTemp, Integer targetLength, Integer maxPrimerLength, Integer minPCRLength) {
 
         //initialize primer parameters
         String[] oligos = new String[2];
@@ -306,14 +331,14 @@ public class RBioBricks extends RGeneral {
 
         Vector currentVector = coll.getVector(vector.getUUID(), true);
         String seq = currentVector.getSeq();
-        String fwdHomology = "";
-        String revHomology = "";
+        String fwdHomology;
+        String revHomology;
         if (seq.equals("")) {
             fwdHomology = "[ VECTOR " + currentVector.getName() + " HOMOLOGY REGION ]";
             revHomology = "[ VECTOR " + currentVector.getName() + " HOMOLOGY REGION ]";
         } else {
-            fwdHomology = seq.substring(0, Math.min(seq.length(), PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, seq, true, false)));
-            revHomology = PrimerDesign.reverseComplement(currentVector.getSeq().substring(Math.max(0, seq.length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, PrimerDesign.reverseComplement(seq), true, false))));
+            fwdHomology = seq.substring(0, Math.min(seq.length(), PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, maxPrimerLength - 23, minPCRLength, seq, true)));
+            revHomology = PrimerDesign.reverseComplement(currentVector.getSeq().substring(Math.max(0, seq.length() - PrimerDesign.getPrimerHomologyLength(meltingTemp, targetLength, maxPrimerLength - 22, minPCRLength, PrimerDesign.reverseComplement(seq), true))));
         }
 
         String forwardOligoSequence = vectorPrimerPrefix + fwdHomology;

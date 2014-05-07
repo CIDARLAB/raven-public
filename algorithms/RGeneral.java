@@ -74,7 +74,6 @@ public class RGeneral extends Modularity {
                     //Pin graph if no existing pinned graph
                     if (pinnedGraph == null) {
                         pinnedGraph = newGraph.clone();
-//                        pinnedGraph = newGraph;
                         index = j;
                     }
 
@@ -172,14 +171,8 @@ public class RGeneral extends Modularity {
         }
         
         //Memoization Case - If graph already exists for this composition and direction. This is always the case for basic parts and library parts
-        if (goalPartNode.getComposition().size() == 1) {
-            if (partsHash.containsKey(goalPartNode.getComposition().toString() + "[]")) {
-                return partsHash.get(goalPartNode.getComposition().toString() + "[]");
-            }
-        } else {
-            if (partsHash.containsKey(goalPartNode.getComposition().toString() + goalPartNode.getDirection().toString())) {
-                return partsHash.get(goalPartNode.getComposition().toString() + goalPartNode.getDirection().toString());
-            }
+        if (partsHash.containsKey(goalPartNode.getComposition().toString() + goalPartNode.getDirection().toString())) {
+            return partsHash.get(goalPartNode.getComposition().toString() + goalPartNode.getDirection().toString());
         }
         
         RGraph bestGraph = new RGraph(goalPartNode);

@@ -33,7 +33,7 @@ public class Part {
         this.uuid = "part_" + String.valueOf(UUID);
     }
 
-    public static Part generateBasic(String name, String sequence, Part composition) {
+    public static Part generateBasic(String name, String sequence, ArrayList<Part> composition) {
         Part newBasic = new Part();
         newBasic.name = name;
 //        if (sequence == null) {
@@ -45,7 +45,7 @@ public class Part {
         if (composition == null) {
             newBasic.composition.add(newBasic);
         } else {
-            newBasic.composition.add(composition);
+            newBasic.composition.addAll(composition);
         }
         newBasic._transient = true;
         return newBasic;

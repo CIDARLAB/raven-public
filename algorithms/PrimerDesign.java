@@ -90,16 +90,7 @@ public class PrimerDesign {
     }
 
     //calculates the length of homology required for primers based on nearest neighbor calculations
-    public static int getPrimerHomologyLength(Double meltingTemp, Integer targetLength, String sequence, boolean fivePrime, boolean forceLength) {
-
-        //If no melting temp is input, return the given length
-        if (meltingTemp == null) {
-            if (sequence.length() < targetLength) {
-                return sequence.length();
-            } else {
-                return targetLength;
-            }
-        }
+    public static int getPrimerHomologyLength(Double meltingTemp, Integer targetLength, Integer maxHomolLength, Integer minHomolLength, String sequence, boolean fivePrime) {
 
         //If the sequence length is under this length, return the whole sequence length
         if (sequence.length() < targetLength) {
@@ -123,20 +114,23 @@ public class PrimerDesign {
                     if (sequence.length() < length) {
                         return sequence.length();
                     }
+                    
+                    //If the sequence is becoming longer than max, return this length
+                    if (length >= maxHomolLength) {
+                        return length;
+                    }
+                    
                     candidateSeq = sequence.substring(0, length);
                     candidateTemp = getMeltingTemp(candidateSeq);
                 }
 
             //Remove base pairs until candidate temp reaches the desired temp if too high
             } else if (candidateTemp > meltingTemp) {
-
                 while (candidateTemp > meltingTemp) {
                     
-                    //If the input length is forced, candidate length is under this length, return the target length
-                    if (forceLength) {
-                        if (length <= targetLength) {
-                            return targetLength;
-                        }
+                    //If the length is less than minimum, return it
+                    if (length <= minHomolLength) {
+                        return targetLength;
                     }
 
                     length--;
@@ -156,9 +150,17 @@ public class PrimerDesign {
                 
                 while (candidateTemp < meltingTemp) {
                     length++;
+                    
+                    //If the sequence length is under this length, return the whole sequence length
                     if (sequence.length() < length) {
                         return sequence.length();
                     }
+                    
+                    //If the sequence is becoming longer than max, return this length
+                    if (length >= maxHomolLength) {
+                        return length;
+                    }
+                    
                     candidateSeq = sequence.substring(sequence.length() - length);
                     candidateTemp = getMeltingTemp(candidateSeq);
                 }
@@ -169,11 +171,9 @@ public class PrimerDesign {
                 //Call the melting temperature function
                 while (candidateTemp > meltingTemp) {
                     
-                    //If the input length is forced, candidate length is under this length, return the target length
-                    if (forceLength) {
-                        if (length <= targetLength) {
-                            return targetLength;
-                        }
+                    //If the length is less than minimum, return it
+                    if (length <= minHomolLength) {
+                        return targetLength;
                     }
                     
                     length--;

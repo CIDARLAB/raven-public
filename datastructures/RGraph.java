@@ -204,7 +204,7 @@ public class RGraph {
                         }
                     }
 
-                    //If it has been seen merge the node in the hash and disconnect this node from solution
+                //If it has been seen merge the node in the hash and disconnect this node from solution
                 } else {
 
                     RNode finalNode;
@@ -279,7 +279,7 @@ public class RGraph {
     /**
      * Get graph statistics *
      */
-    public static void getGraphStats(ArrayList<RGraph> allGraphs, ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashSet<String> recommended, HashSet<String> discouraged, boolean scarless, Double stepCost, Double stepTime, Double pcrCost, Double pcrTime) {
+    public static void getGraphStats(ArrayList<RGraph> allGraphs, ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashSet<String> recommended, HashSet<String> discouraged, Double stepCost, Double stepTime, Double pcrCost, Double pcrTime) {
         //don't count library parts and vectors 
         HashSet<String> seenPartKeys = getExistingPartKeys(partLib);
         HashSet<String> seenVectorKeys = getExistingVectorKeys(vectorLib);
@@ -316,9 +316,13 @@ public class RGraph {
                     }
                 }
 
-                ArrayList<String> composition = current.getComposition();
                 String currentPartKey = current.getNodeKey("+");
-
+                
+                //Ammend the node key for merged nodes
+                if (current.getSpecialSeq() != null) {
+                    currentPartKey = currentPartKey + "|s";
+                }
+                
                 String currentVectorKey = "";
                 if (current.getVector() != null) {
                     currentVectorKey = current.getVector().getVectorKey("+");
@@ -637,7 +641,7 @@ public class RGraph {
     /**
      * Generate a Weyekin image file for a this graph *
      */
-    public String generateWeyekinFile(ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashMap<Part, Vector> compPartsVectors, ArrayList<RNode> goalPartNodes, boolean scarless, String method) {
+    public String generateWeyekinFile(ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashMap<Part, Vector> compPartsVectors, ArrayList<RNode> goalPartNodes, String method) {
 
         //Initiate weyekin file
         StringBuilder weyekinText = new StringBuilder();
@@ -679,7 +683,7 @@ public class RGraph {
             String rOverhang = current.getROverhang();
             String nodeID = composition + "|" + direction + "|" + scars + "|" + lOverhang + "|" + rOverhang + "|" + vecName;
 
-            if (scarless) {
+            if (method.equalsIgnoreCase("gibson") || method.equalsIgnoreCase("cpec") || method.equalsIgnoreCase("slic") || method.equalsIgnoreCase("goldengate")) {
                 if (gpComps.contains(composition.toString())) {
                     if (vecName == null) {
                         vecName = "";
@@ -701,7 +705,7 @@ public class RGraph {
                 //Add PCR edges for level 0 nodes
                 if (current.getStage() == 0) {
 
-                    boolean basicNode = false;
+                    boolean basicPlasmid = false;
                     String nodeIDB = composition + "|" + direction + "|" + scars + "|" + lOverhang + "|" + rOverhang;
 
                     //If the original node had no vector, 'null' was added to the string and this must be corrected and no redundant edges should be added                                
@@ -711,7 +715,7 @@ public class RGraph {
                             pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, nodeIDB, lOverhang, rOverhang, null);
                             weyekinText.append(pigeonLine.toString());
                         } else {
-                            basicNode = true;
+                            basicPlasmid = true;
                         }
                     } else {
                         edgeLines = edgeLines + "\"" + nodeIDB + "\"" + " -> " + "\"" + nodeID + "\"" + "\n";
@@ -720,13 +724,32 @@ public class RGraph {
                     }
 
                     if (!startPartsLOcompRO.contains(nodeIDB)) {
-                        if (basicNode == true) {
+                        if (basicPlasmid == true) {
                             nodeIDB = nodeID;
                         }
-                        String NnodeID = composition + "|" + direction + "|" + scars;
-                        edgeLines = edgeLines + "\"" + NnodeID + "\"" + " -> " + "\"" + nodeIDB + "\"" + "\n";
-                        pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, NnodeID, null, null, null);
-                        weyekinText.append(pigeonLine.toString());
+                        
+                        //Edge case for merged nodes
+                        if (current.getPCRSeq() != null) {
+                            if (!current.getPCRSeq().equalsIgnoreCase("synthesize")) {
+                                ArrayList<String> spComp = new ArrayList<String>();
+                                ArrayList<String> spDir = new ArrayList<String>();
+                                ArrayList<String> spType = new ArrayList<String>();
+                                spComp.add(composition.get(composition.size() - 1));
+                                spDir.add(direction.get(direction.size() - 1));
+                                spType.add(type.get(type.size() - 1));
+                                
+                                String NnodeID = spComp + "|" + spDir + "|" + scars;
+                                edgeLines = edgeLines + "\"" + NnodeID + "\"" + " -> " + "\"" + nodeIDB + "\"" + "\n";
+                                pigeonLine = generatePigeonCodeOld(spComp, spType, spDir, scars, NnodeID, null, null, null);
+                                weyekinText.append(pigeonLine.toString());
+                            }
+                            
+                        } else {
+                            String NnodeID = composition + "|" + direction + "|" + scars;
+                            edgeLines = edgeLines + "\"" + NnodeID + "\"" + " -> " + "\"" + nodeIDB + "\"" + "\n";
+                            pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, NnodeID, null, null, null);
+                            weyekinText.append(pigeonLine.toString());
+                        }
                     }
                 }
 
@@ -915,8 +938,8 @@ public class RGraph {
     private static String generatePigeonCode(ArrayList<String> composition, ArrayList<String> types, ArrayList<String> direction, ArrayList<String> scars, String LO, String RO, String vecName) {
 
         StringBuilder pigeonLine = new StringBuilder();
+        
         //Assign left overhang if it exists                
-//        pigeonLine.append("3 ").append(LO).append("\n");
         if (LO != null) {
             pigeonLine.append("5 ").append(LO).append("\n");
         }
@@ -984,7 +1007,6 @@ public class RGraph {
         if (RO != null) {
             pigeonLine.append("3 ").append(RO).append("\n");
         }
-//        pigeonLine.append("5 ").append(RO).append("\n");
 
         //Vectors
         if (vecName != null) {
