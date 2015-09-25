@@ -2,9 +2,9 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.datastructures;
+package org.cidarlab.raven.datastructures;
 
-import Controller.algorithms.PrimerDesign;
+import org.cidarlab.raven.algorithms.core.PrimerDesign;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.regex.Matcher;

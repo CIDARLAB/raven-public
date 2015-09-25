@@ -2,11 +2,16 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.algorithms.nonmodasm;
+package org.cidarlab.raven.algorithms.nonmodasm;
 
-import Controller.accessibility.ClothoReader;
-import Controller.algorithms.RGeneral;
-import Controller.datastructures.*;
+import org.cidarlab.raven.datastructures.RGraph;
+import org.cidarlab.raven.datastructures.Collector;
+import org.cidarlab.raven.datastructures.RVector;
+import org.cidarlab.raven.datastructures.Part;
+import org.cidarlab.raven.datastructures.RNode;
+import org.cidarlab.raven.datastructures.Vector;
+import org.cidarlab.raven.accessibility.ClothoReader;
+import org.cidarlab.raven.algorithms.core.RGeneral;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,7 +52,7 @@ public class RGibson extends RGeneral {
     }
     
     /** Assign overhangs for scarless assembly **/
-    private void assignOverhangs(ArrayList<RGraph> asmGraphs, HashMap<Integer, Vector> stageVectors, Integer minCloneLength, Collector collector) {
+    public static void assignOverhangs(ArrayList<RGraph> asmGraphs, HashMap<Integer, Vector> stageVectors, Integer minCloneLength, Collector collector) {
         
         //Initialize fields that record information to save complexity for future steps
         _rootBasicNodeHash = new HashMap<RNode, ArrayList<RNode>>();
@@ -77,11 +82,8 @@ public class RGibson extends RGeneral {
             ArrayList<RNode> l0nodes = new ArrayList<RNode>();
             _rootBasicNodeHash.put(root, l0nodes);
 
-            //Make a new dummy root node to accomodate overhang assignment
-            RNode fakeRootClone = root.clone();
-            RVector fakeRootVec = new RVector(vector.getName() + "_R", vector.getName() + "_L", root.getStage(), "dummyVec", null);
-            fakeRootClone.setVector(fakeRootVec);
-            assignOverhangsHelper(fakeRootClone, neighbors, root, stageRVectors, minCloneLength, collector);
+            //Call helper method
+            assignOverhangsHelper(root, neighbors, root, stageRVectors, minCloneLength, collector);
         }       
         
         //Get flanking sequences for special nodes
@@ -89,32 +91,41 @@ public class RGibson extends RGeneral {
             RNode root = graph.getRootNode();
             ArrayList<RNode> l0Nodes = _rootBasicNodeHash.get(root);
 
-            //Determine which levels each basic node impacts            
-            for (int i = 0; i < l0Nodes.size(); i++) {
+            //Assign special sequences if nodes have been merged
+            if (l0Nodes.size() > 1) {
+                for (int i = 0; i < l0Nodes.size(); i++) {
 
-                //Determine direction of basic level 0 nodes               
-                RNode l0Node = l0Nodes.get(i);                     
-                if (l0Node.getSpecialSeq() != null) {
-                    
-                    if (i == 0) {
-                        l0Node.setLeftSeq(collector.getAllVectorsWithName(root.getVector().getName(), true).get(0).getSeq());
-                        l0Node.setRightSeq(collector.getPart(l0Nodes.get(i+1).getUUID(), true).getSeq());
-                        
-                    } else if (i == l0Nodes.size() - 1) {
-                        l0Node.setLeftSeq(collector.getPart(l0Nodes.get(i-1).getUUID(), true).getSeq());
-                        l0Node.setRightSeq(collector.getAllVectorsWithName(root.getVector().getName(), true).get(0).getSeq());
-                        
-                    } else {
-                        l0Node.setLeftSeq(collector.getPart(l0Nodes.get(i-1).getUUID(), true).getSeq());
-                        l0Node.setRightSeq(collector.getPart(l0Nodes.get(i+1).getUUID(), true).getSeq());
+                    RNode l0Node = l0Nodes.get(i);
+                    if (l0Node.getSpecialSeq() != null) {
+
+                        if (i == 0) {
+                            l0Node.setLeftSeq(collector.getAllVectorsWithName(root.getVector().getName(), true).get(0).getSeq());
+                            l0Node.setRightSeq(collector.getPart(l0Nodes.get(i + 1).getUUID(), true).getSeq());
+
+                        } else if (i == l0Nodes.size() - 1) {
+                            l0Node.setLeftSeq(collector.getPart(l0Nodes.get(i - 1).getUUID(), true).getSeq());
+                            l0Node.setRightSeq(collector.getAllVectorsWithName(root.getVector().getName(), true).get(0).getSeq());
+
+                        } else {
+                            l0Node.setLeftSeq(collector.getPart(l0Nodes.get(i - 1).getUUID(), true).getSeq());
+                            l0Node.setRightSeq(collector.getPart(l0Nodes.get(i + 1).getUUID(), true).getSeq());
+                        }
                     }
-                }               
+                }
+            
+            //Edge case where all parts are too small for a gibson clone, i.e. all are merged
+            } else if (l0Nodes.size() == 1) {
+                RNode l0Node = l0Nodes.get(0);
+                if (l0Node.getSpecialSeq() != null) {
+                    l0Node.setLeftSeq(collector.getAllVectorsWithName(root.getVector().getName(), true).get(0).getSeq());
+                    l0Node.setRightSeq(collector.getAllVectorsWithName(root.getVector().getName(), true).get(0).getSeq());
+                }
             }
         }
     }
     
     /** Overhang assignment helper **/
-    private void assignOverhangsHelper(RNode parent, ArrayList<RNode> neighbors, RNode root, HashMap<Integer, RVector> stageRVectors, Integer minCloneLength, Collector collector) {
+    private static void assignOverhangsHelper(RNode parent, ArrayList<RNode> neighbors, RNode root, HashMap<Integer, RVector> stageRVectors, Integer minCloneLength, Collector collector) {
         
         ArrayList<RNode> children = new ArrayList<RNode>();
         
@@ -142,7 +153,7 @@ public class RGibson extends RGeneral {
                 child.setLOverhang(parent.getLOverhang());
                 
                 if (vector != null && child.getStage() != 0) {
-                    RVector newVector = new RVector(parent.getVector().getLOverhang(), nextComp.get(0) + nextDir.get(0), child.getStage(), vector.getName(), null);
+                    RVector newVector = new RVector(root.getLOverhang(), nextComp.get(0) + nextDir.get(0), child.getStage(), vector.getName(), null);
                     child.setVector(newVector);
                 } else {
                     
@@ -167,7 +178,7 @@ public class RGibson extends RGeneral {
                 child.setROverhang(parent.getROverhang());
                 
                 if (vector != null && child.getStage() != 0) {
-                    RVector newVector = new RVector(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1), parent.getVector().getROverhang(), child.getStage(), vector.getName(), null);
+                    RVector newVector = new RVector(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1), root.getROverhang(), child.getStage(), vector.getName(), null);
                     child.setVector(newVector);
                 } else {
                     
@@ -227,5 +238,5 @@ public class RGibson extends RGeneral {
         return true;
     }
     
-    private HashMap<RNode, ArrayList<RNode>> _rootBasicNodeHash; //key: root node, value: ordered arrayList of level0 nodes in graph that root node belongs to
+    private static HashMap<RNode, ArrayList<RNode>> _rootBasicNodeHash; //key: root node, value: ordered arrayList of level0 nodes in graph that root node belongs to
 }

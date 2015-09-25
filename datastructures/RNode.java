@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.datastructures;
+package org.cidarlab.raven.datastructures;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,13 +17,14 @@ public class RNode {
     public RNode() {
         _recommended = false;
         _discouraged = false;
-        _efficiency = 0;
+        _efficiency = 1;
         _successCnt = 0;
         _failureCnt = 0;
         _neighbors = new ArrayList<RNode>();
         _composition = new ArrayList<String>();
         _direction = new ArrayList<String>();
         _scars = new ArrayList<String>();
+        _linkers = new ArrayList<String>();
         _uuid = null;
         _type = new ArrayList<String>();
         _lOverhang = "";
@@ -35,15 +36,16 @@ public class RNode {
     }
 
     /** SDSNode constructor for intermediates with meta-data, neighbors and composition, but no part**/
-    public RNode(boolean recommended, boolean discouraged, ArrayList<String> composition, ArrayList<String> direction, ArrayList<String> type, ArrayList<String> scars, String lOverhang, String rOverhang, int successCnt, int failureCnt, RVector vector) {
+    public RNode(boolean recommended, boolean discouraged, ArrayList<String> composition, ArrayList<String> direction, ArrayList<String> type, ArrayList<String> scars, ArrayList<String> fusions, String lOverhang, String rOverhang, int successCnt, int failureCnt, RVector vector) {
         _uuid = null;
         _recommended = recommended;
         _discouraged = discouraged;
-        _efficiency = 0;
+        _efficiency = 1;
         _successCnt = successCnt;
         _failureCnt = failureCnt;
         _neighbors = new ArrayList<RNode>();
         _scars = scars;
+        _linkers = fusions;
         _composition = composition;
         _direction = direction;
         _type = type;
@@ -56,8 +58,8 @@ public class RNode {
     }
     
     /** Clone nodes of a graph by traversing and copying nodes **/
-    @Override
-    public RNode clone() {
+//    @Override
+    public RNode clone(boolean cloneNeighbors) {
         
         RNode clone = new RNode();
         clone._recommended = this._recommended;
@@ -69,14 +71,18 @@ public class RNode {
         clone._composition = this._composition;
         clone._direction = this._direction;
         clone._scars = this._scars;
+        clone._linkers = this._linkers;
         clone._name = this._name;
         clone._stage = this._stage;
         clone._vector = this._vector;
         clone._efficiency = this._efficiency;
         clone._successCnt = this._successCnt;
         clone._failureCnt = this._failureCnt;
-        ArrayList<RNode> neighbors = this._neighbors;
-        cloneHelper(clone, this, neighbors);
+        
+        if (cloneNeighbors) {
+            ArrayList<RNode> neighbors = this._neighbors;
+            cloneHelper(clone, this, neighbors);
+        }
         
         return clone;
     }
@@ -97,6 +103,7 @@ public class RNode {
             childClone._composition = child._composition;
             childClone._direction = child._direction;
             childClone._scars = child._scars;
+            childClone._linkers = child._linkers;
             childClone._name = child._name;
             childClone._stage = child._stage;
             childClone._vector = child._vector;
@@ -124,7 +131,7 @@ public class RNode {
     public RNode mergeNodes(RNode smallNode, RNode parent, String thisSeq) {
         
         //Make new merged node
-        RNode mergedNode = this.clone();
+        RNode mergedNode = this.clone(true);
         mergedNode._lOverhang = smallNode._lOverhang;
         mergedNode._name = smallNode._name + "_" + this._name;
         
@@ -270,6 +277,11 @@ public class RNode {
         return _rSeq;
     }
     
+    /** Get the fusions for a node **/
+    public ArrayList<String> getLinkers () {
+        return _linkers;
+    }
+    
     /** Get node keys for either forward or reverse direction **/
     public String getNodeKey(String dir) {
         
@@ -277,11 +289,12 @@ public class RNode {
         ArrayList<String> composition = this._composition;
         ArrayList<String> directions = this._direction;
         ArrayList<String> scars = this._scars;
+        ArrayList<String> linkers = this._linkers;
         String leftOverhang = this._lOverhang;
         String rightOverhang = this._rOverhang;
         
         if (dir.equals("+")) {           
-            String aPartLOcompRO = composition + "|" + directions + "|" + scars + "|" + leftOverhang + "|" + rightOverhang;
+            String aPartLOcompRO = composition + "|" + directions + "|" + scars + "|" + linkers + "|" + leftOverhang + "|" + rightOverhang;
             return aPartLOcompRO;
         } else {
             
@@ -309,7 +322,18 @@ public class RNode {
                     invertedScars.add(0,scar);
                 }
             }
-
+            
+            ArrayList<String> invertedLinkers = new ArrayList();
+            for (String linker: linkers) {
+                if (linker.contains("*")) {
+                    linker = linker.replace("*", "");
+                    invertedLinkers.add(0,linker);
+                } else {
+                    linker = linker + "*";
+                    invertedLinkers.add(0,linker);
+                }
+            }
+ 
             String invertedLeftOverhang = rightOverhang;
             String invertedRightOverhang = leftOverhang;
             if (invertedLeftOverhang.contains("*")) {
@@ -323,7 +347,7 @@ public class RNode {
                 invertedRightOverhang = invertedRightOverhang + "*";
             }
             
-            String aPartCompDirScarLOROR = revComp + "|" + invertedDirections + "|" + invertedScars + "|" + invertedLeftOverhang + "|" + invertedRightOverhang;
+            String aPartCompDirScarLOROR = revComp + "|" + invertedDirections + "|" + invertedScars + "|" + invertedLinkers + "|" + invertedLeftOverhang + "|" + invertedRightOverhang;
             return aPartCompDirScarLOROR;
         }
     }
@@ -446,6 +470,11 @@ public class RNode {
         _rSeq = seq;
     }
     
+    /** Set the fusions parts for a node **/
+    public void setLinkers(ArrayList<String> linkers) {
+        _linkers = linkers;
+    }
+    
     //FIELDS
     private int _successCnt;
     private int _failureCnt;
@@ -453,12 +482,13 @@ public class RNode {
     private double _modularity;
     private boolean _recommended;
     private boolean _discouraged;
-    private ArrayList<RNode> _neighbors;
+    public ArrayList<RNode> _neighbors;
     private ArrayList<String> _direction;
     private String _uuid;
     private ArrayList<String> _composition;
     private ArrayList<String> _type;
     private ArrayList<String> _scars;
+    private ArrayList<String> _linkers;
     private String _lOverhang;
     private String _rOverhang;
     private RVector _vector;

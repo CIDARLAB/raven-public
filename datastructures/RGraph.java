@@ -2,10 +2,10 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.datastructures;
+package org.cidarlab.raven.datastructures;
 
-import Communication.WeyekinPoster;
-import Controller.accessibility.ClothoReader;
+import org.cidarlab.raven.communication.WeyekinPoster;
+import org.cidarlab.raven.accessibility.ClothoReader;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -60,7 +60,7 @@ public class RGraph {
     @Override
     public RGraph clone() {
         RGraph clone = new RGraph();
-        clone._rootNode = this._rootNode.clone();
+        clone._rootNode = this._rootNode.clone(true);
         clone._recCnt = this._recCnt;
         clone._disCnt = this._disCnt;
         clone._stages = this._stages;
@@ -279,7 +279,38 @@ public class RGraph {
     /**
      * Get graph statistics *
      */
-    public static void getGraphStats(ArrayList<RGraph> allGraphs, ArrayList<Part> partLib, ArrayList<Vector> vectorLib, HashSet<String> recommended, HashSet<String> discouraged, Double stepCost, Double stepTime, Double pcrCost, Double pcrTime) {
+    public static void getGraphStats(ArrayList<RGraph> allGraphs, ArrayList<Part> partLib, ArrayList<Vector> vectorLib, JSONObject parameters, Double stepCost, Double stepTime, Double pcrCost, Double pcrTime) {
+        
+        //Get recommended and discouraged
+        HashSet<String> recommended = new HashSet();
+        HashSet<String> discouraged = new HashSet();
+        
+        if (parameters.has("recommended")) {
+            String[] recArray = parameters.get("recommended").toString().split(";");
+            if (recArray.length > 0) {
+                for (int i = 0; i < recArray.length; i++) {
+                    if (recArray[i].length() > 0) {
+                        String rcA = recArray[i];
+                        rcA = rcA.replaceAll("\\|[^|]\\|[^|]\\|", "|||");
+                        recommended.add(rcA);
+                    }
+                }
+            }
+        }
+
+        if (parameters.has("discouraged")) {
+            String[] discouragedArray = parameters.get("discouraged").toString().split(";");
+            if (discouragedArray.length > 0) {
+                for (int i = 0; i < discouragedArray.length; i++) {
+                    if (discouragedArray[i].length() > 0) {
+                        String dA = discouragedArray[i];
+                        dA = dA.replaceAll("\\|[^|]\\|[^|]\\|", "|||");
+                        discouraged.add(dA);
+                    }
+                }
+            }
+        }
+        
         //don't count library parts and vectors 
         HashSet<String> seenPartKeys = getExistingPartKeys(partLib);
         HashSet<String> seenVectorKeys = getExistingVectorKeys(vectorLib);
@@ -418,8 +449,7 @@ public class RGraph {
                 comp.add(name);
             }
 
-            ArrayList<String> searchTags = aPart.getSearchTags();
-            RNode node = new RNode(false, false, comp, ClothoReader.parseTags(searchTags, "Direction:"), null, ClothoReader.parseTags(searchTags, "Scars:"), aPart.getLeftOverhang(), aPart.getRightOverhang(), 0, 0, null);
+            RNode node = new RNode(false, false, comp, aPart.getDirections(), aPart.getType(), aPart.getScars(), aPart.getLinkers(), aPart.getLeftOverhang(), aPart.getRightOverhang(), 0, 0, null);
             keys.add(node.getNodeKey("+"));
             keys.add(node.getNodeKey("-"));
         }
@@ -475,8 +505,7 @@ public class RGraph {
                 comp.add(name);
             }
 
-            ArrayList<String> searchTags = part.getSearchTags();
-            RNode node = new RNode(false, false, comp, ClothoReader.parseTags(searchTags, "Direction:"), null, ClothoReader.parseTags(searchTags, "Scars:"), part.getLeftOverhang(), part.getRightOverhang(), 0, 0, null);
+            RNode node = new RNode(false, false, comp, part.getDirections(), part.getType(), part.getScars(), part.getLinkers(), part.getLeftOverhang(), part.getRightOverhang(), 0, 0, null);
             String nodeKey = node.getNodeKey("+");
             String revNodeKey = node.getNodeKey("-");
 
@@ -487,8 +516,6 @@ public class RGraph {
         return keys;
     }
 
-
-
     /**
      * ************************************************************************
      *
@@ -496,6 +523,7 @@ public class RGraph {
      *
      *************************************************************************
      */
+    
     /**
      * Get all the edges of an SDSGraph in Post Order *
      */
@@ -684,18 +712,18 @@ public class RGraph {
             String nodeID = composition + "|" + direction + "|" + scars + "|" + lOverhang + "|" + rOverhang + "|" + vecName;
 
             if (method.equalsIgnoreCase("gibson") || method.equalsIgnoreCase("cpec") || method.equalsIgnoreCase("slic") || method.equalsIgnoreCase("goldengate")) {
-                if (gpComps.contains(composition.toString())) {
+                if (gpComps.contains(composition.toString()) && (current.getSpecialSeq() == null)) {
                     if (vecName == null) {
                         vecName = "";
                     }
-                    pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, nodeID, "", "", vecName);
+                    pigeonLine = generatePigeonCode(composition, type, direction, scars, nodeID, "", "", vecName);
                     weyekinText.append(pigeonLine);
                 } else {
-                    pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, nodeID, lOverhang, rOverhang, vecName);
+                    pigeonLine = generatePigeonCode(composition, type, direction, scars, nodeID, lOverhang, rOverhang, vecName);
                     weyekinText.append(pigeonLine);
                 }
             } else {
-                pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, nodeID, lOverhang, rOverhang, vecName);
+                pigeonLine = generatePigeonCode(composition, type, direction, scars, nodeID, lOverhang, rOverhang, vecName);
                 weyekinText.append(pigeonLine);
             }
 
@@ -712,14 +740,14 @@ public class RGraph {
                     if (nodeID.endsWith("null")) {
                         if (!nodeIDB.equals(nodeID.substring(0, nodeID.length() - 5))) {
                             edgeLines = edgeLines + "\"" + nodeIDB + "\"" + " -> " + "\"" + nodeID + "\"" + "\n";
-                            pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, nodeIDB, lOverhang, rOverhang, null);
+                            pigeonLine = generatePigeonCode(composition, type, direction, scars, nodeIDB, lOverhang, rOverhang, null);
                             weyekinText.append(pigeonLine.toString());
                         } else {
                             basicPlasmid = true;
                         }
                     } else {
                         edgeLines = edgeLines + "\"" + nodeIDB + "\"" + " -> " + "\"" + nodeID + "\"" + "\n";
-                        pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, nodeIDB, lOverhang, rOverhang, null);
+                        pigeonLine = generatePigeonCode(composition, type, direction, scars, nodeIDB, lOverhang, rOverhang, null);
                         weyekinText.append(pigeonLine.toString());
                     }
 
@@ -740,14 +768,14 @@ public class RGraph {
                                 
                                 String NnodeID = spComp + "|" + spDir + "|" + scars;
                                 edgeLines = edgeLines + "\"" + NnodeID + "\"" + " -> " + "\"" + nodeIDB + "\"" + "\n";
-                                pigeonLine = generatePigeonCodeOld(spComp, spType, spDir, scars, NnodeID, null, null, null);
+                                pigeonLine = generatePigeonCode(spComp, spType, spDir, scars, NnodeID, null, null, null);
                                 weyekinText.append(pigeonLine.toString());
                             }
                             
                         } else {
                             String NnodeID = composition + "|" + direction + "|" + scars;
                             edgeLines = edgeLines + "\"" + NnodeID + "\"" + " -> " + "\"" + nodeIDB + "\"" + "\n";
-                            pigeonLine = generatePigeonCodeOld(composition, type, direction, scars, NnodeID, null, null, null);
+                            pigeonLine = generatePigeonCode(composition, type, direction, scars, NnodeID, null, null, null);
                             weyekinText.append(pigeonLine.toString());
                         }
                     }
@@ -769,10 +797,16 @@ public class RGraph {
                     edgeLines = edgeLines + "\"" + vecID + "\"" + " -> " + "\"" + nodeID + "\"" + "\n";
                     
                     //For MoClo and Golden Gate, destination vectors are made and they will show a lacZ PCR and destination vector as opposed to a PCRed vector
-                    if (method.equalsIgnoreCase("moclo") || method.equalsIgnoreCase("goldengate")) {
-                        pigeonLine = generatePigeonCodeOld(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), vecID, vecLO, vecRO, vecName);
+                    if (method.equalsIgnoreCase("moclo") || method.equalsIgnoreCase("goldengate") || method.equalsIgnoreCase("gatewaygibson")) {                        
+                        if (method.equalsIgnoreCase("gatewaygibson") && vecL > 0) {
+                            vecComposition.clear();
+                            vecComposition.add("CmR-ccdB");
+                            pigeonLine = generatePigeonCode(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), vecID, vecLO, vecRO, vecName);
+                        } else {
+                            pigeonLine = generatePigeonCode(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), vecID, vecLO, vecRO, vecName);
+                        }
                     } else {
-                        pigeonLine = generatePigeonCodeOld(null, null, null, null, vecID, vecLO, vecRO, vecName);
+                        pigeonLine = generatePigeonCode(null, null, null, null, vecID, vecLO, vecRO, vecName);
                     }
                     weyekinText.append(pigeonLine.toString());
 
@@ -780,10 +814,16 @@ public class RGraph {
                         String NvecID = vecName + "|" + vecL;
                         edgeLines = edgeLines + "\"" + NvecID + "\"" + " -> " + "\"" + vecID + "\"" + "\n";
                         
-                        if (method.equalsIgnoreCase("moclo") || method.equalsIgnoreCase("goldengate")) {
-                            pigeonLine = generatePigeonCodeOld(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), NvecID, null, null, null);
+                        if (method.equalsIgnoreCase("moclo") || method.equalsIgnoreCase("goldengate") || method.equalsIgnoreCase("gatewaygibson")) {
+                            if (method.equalsIgnoreCase("gatewaygibson") && vecL > 0) {
+                                vecComposition.clear();
+                                vecComposition.add("CmR-ccdB");
+                                pigeonLine = generatePigeonCode(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), NvecID, null, null, null);
+                            } else {
+                                pigeonLine = generatePigeonCode(vecComposition, vecTypes, vecDirection, new ArrayList<String>(), NvecID, null, null, null);
+                            }
                         } else {
-                            pigeonLine = generatePigeonCodeOld(null, null, null, null, NvecID, null, null, vecName);
+                            pigeonLine = generatePigeonCode(null, null, null, null, NvecID, null, null, vecName);
                         }
                         weyekinText.append(pigeonLine.toString());
                     }
@@ -824,7 +864,9 @@ public class RGraph {
         return weyekinText.toString();
     }
 
-    //returns a json string that can be parsed by the client
+    /*
+     * D3 graph generation code
+     */
     public static JSONObject generateD3Graph(ArrayList<RGraph> graphs, ArrayList<Part> partLib, ArrayList<Vector> vectorLib) throws Exception {
         HashMap<String, String> imageURLs = new HashMap();
         HashSet<String> edgeSet = new HashSet();
@@ -856,7 +898,7 @@ public class RGraph {
                 String lOverhang = current.getLOverhang();
                 String rOverhang = current.getROverhang();
                 String nodeID = composition + "|" + direction + "|" + scars + "|" + lOverhang + "|" + rOverhang + "|" + vecName;
-                imageURLs.put(nodeID, generatePigeonCode(composition, type, direction, scars, lOverhang, rOverhang, vecName));
+                imageURLs.put(nodeID, generatePigeonCodePost(composition, type, direction, scars, lOverhang, rOverhang, vecName));
 
                 //Add PCR edges for level 0 nodes
                 if (current.getStage() == 0) {
@@ -867,7 +909,7 @@ public class RGraph {
                     //If the original node had no vector, 'null' was added to the string and this must be corrected and no redundant edges should be added
                     if (!nodeIDB.equals(nodeID.substring(0, nodeID.length() - 5))) {
                         edgeSet.add("\"" + nodeIDB + "\"" + " -> " + "\"" + nodeID + "\"");
-                        imageURLs.put(nodeIDB, generatePigeonCode(composition, type, direction, scars, lOverhang, rOverhang, null));
+                        imageURLs.put(nodeIDB, generatePigeonCodePost(composition, type, direction, scars, lOverhang, rOverhang, null));
 
                     } else {
                         basicNode = true;
@@ -879,7 +921,7 @@ public class RGraph {
                         }
                         String NnodeID = composition + "|" + direction + "|" + scars;
                         edgeSet.add("\"" + NnodeID + "\"" + " -> " + "\"" + nodeIDB + "\"");
-                        imageURLs.put(NnodeID, generatePigeonCode(composition, type, direction, scars, null, null, null));
+                        imageURLs.put(NnodeID, generatePigeonCodePost(composition, type, direction, scars, null, null, null));
                     }
                 }
 
@@ -890,12 +932,12 @@ public class RGraph {
                     int vecL = vector.getLevel();
                     String vecID = vecName + "|" + vecLO + "|" + vecL + "|" + vecRO;
                     edgeSet.add("\"" + vecID + "\"" + " -> " + "\"" + nodeID + "\"");
-                    imageURLs.put(vecID, generatePigeonCode(null, null, null, null, vecLO, vecRO, vecName));
+                    imageURLs.put(vecID, generatePigeonCodePost(null, null, null, null, vecLO, vecRO, vecName));
 
                     if (!startVectorsLOlevelRO.contains(vecID)) {
                         String NvecID = vecName + "|" + vecL;
                         edgeSet.add("\"" + NvecID + "\"" + " -> " + "\"" + vecID + "\"" + "\n");
-                        imageURLs.put(NvecID, generatePigeonCode(null, null, null, null, null, null, vecName));
+                        imageURLs.put(NvecID, generatePigeonCodePost(null, null, null, null, null, null, vecName));
                     }
                 }
 
@@ -935,7 +977,10 @@ public class RGraph {
 
     }
 
-    private static String generatePigeonCode(ArrayList<String> composition, ArrayList<String> types, ArrayList<String> direction, ArrayList<String> scars, String LO, String RO, String vecName) {
+    /*
+     * Generates Pigeon code, returns URL of posted image
+     */
+    private static String generatePigeonCodePost(ArrayList<String> composition, ArrayList<String> types, ArrayList<String> direction, ArrayList<String> scars, String LO, String RO, String vecName) {
 
         StringBuilder pigeonLine = new StringBuilder();
         
@@ -957,6 +1002,11 @@ public class RGraph {
                     if ("-".equals(dir)) {
                         pigeonLine.append("<");
                     }
+                }
+                
+                //Correct for multiplex parts
+                if (type.contains("_multiplex")) {
+                    type = type.substring(0, type.length()-10);
                 }
 
                 //Write pigeon code for a recognized regular part type
@@ -1018,11 +1068,10 @@ public class RGraph {
         return WeyekinPoster.getmPigeonURI().toString();
     }
 
-    /**
-     * Pigeon code generation *
+    /*
+     * Pigeon code generation 
      */
-    @Deprecated
-    public static String generatePigeonCodeOld(ArrayList<String> composition, ArrayList<String> types, ArrayList<String> direction, ArrayList<String> scars, String compLORO, String LO, String RO, String vecName) {
+    public static String generatePigeonCode(ArrayList<String> composition, ArrayList<String> types, ArrayList<String> direction, ArrayList<String> scars, String compLORO, String LO, String RO, String vecName) {
 
         StringBuilder pigeonLine = new StringBuilder();
         pigeonLine.append("PIGEON_START\n");
@@ -1050,6 +1099,11 @@ public class RGraph {
                         pigeonLine.append("<");
                     }
                 }
+                
+                //Correct for multiplex parts
+                if (type.contains("_multiplex")) {
+                    type = type.substring(0, type.length()-10);
+                }
 
                 //Write pigeon code for a recognized regular part type
                 if (type.equalsIgnoreCase("promoter") || type.equalsIgnoreCase("p")) {
@@ -1061,7 +1115,7 @@ public class RGraph {
                 } else if (type.equalsIgnoreCase("reporter") || type.equalsIgnoreCase("rep")) {
                     pigeonLine.append("c ").append(name).append(" 9" + "\n");
                 } else if (type.equalsIgnoreCase("lacZ") || type.equalsIgnoreCase("l")) {
-                    pigeonLine.append("c ").append(name).append(" 2" + "\n");
+                    pigeonLine.append("g ").append(name).append(" 2" + "\n");
                 } else if (type.equalsIgnoreCase("resistance") || type.equalsIgnoreCase("res")) {
                     pigeonLine.append("g ").append(name).append(" 2" + "\n");
                 } else if (type.equalsIgnoreCase("terminator") || type.equalsIgnoreCase("t")) {
@@ -1486,6 +1540,7 @@ public class RGraph {
     public void setEstCost(Double estCost) {
         _estCost = estCost;
     }
+    
     //FIELDS
     private ArrayList<RGraph> _subGraphs;
     private RNode _rootNode;

@@ -2,12 +2,11 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.datastructures;
+package org.cidarlab.raven.datastructures;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import javax.swing.JOptionPane;
 
 /**
  *
@@ -85,21 +84,24 @@ public class Collector {
         return toReturn;
     }
 
-    public Part getExactPart(String name, String seq, ArrayList<String> composition, ArrayList<String> tags, boolean allowTransient) {
+     public Part getExactPart(String name, String seq, ArrayList<String> composition, String leftOverhang, String rightOverhang, ArrayList<String> type, ArrayList<String> scars, ArrayList<String> directions, boolean allowTransient) {
 
         Part toReturn = null;
-        HashSet<String> queryTags;
-        HashSet<String> currentTags;
         ArrayList<Part> allPartsWithName = this.getAllPartsWithName(name, allowTransient);
 
         if (allPartsWithName != null) {
             for (Part p : allPartsWithName) {
                 if (allowTransient || !p.isTransient()) {
-                    queryTags = new HashSet(tags);
-                    currentTags = new HashSet(p.getSearchTags());
-                    if (currentTags.equals(queryTags) && p.getSeq().equals(seq) && composition.equals(p.getStringComposition())) {
-                        toReturn = p;
-                        return toReturn;
+                    if (seq != null) {
+                        if (p.getSeq().equals(seq) && composition.equals(p.getStringComposition()) && p.getLeftOverhang().equals(leftOverhang) && p.getRightOverhang().equals(rightOverhang) && p.getType().equals(type) && p.getScars().equals(scars) && p.getDirections().equals(directions)) {
+                            toReturn = p;
+                            return toReturn;
+                        }
+                    } else {
+                        if (composition.equals(p.getStringComposition()) && p.getLeftOverhang().equals(leftOverhang) && p.getRightOverhang().equals(rightOverhang) && p.getType().equals(type) && p.getScars().equals(scars) && p.getDirections().equals(directions)) {
+                            toReturn = p;
+                            return toReturn;
+                        }
                     }
                 }
             }
@@ -109,7 +111,7 @@ public class Collector {
 
     //returns the part you added or an existing part that matches exactly
     public Part addPart(Part aPart) {
-        Part existingPart = this.getExactPart(aPart.getName(), aPart.getSeq(), aPart.getStringComposition(), aPart.getSearchTags(), false);
+        Part existingPart = this.getExactPart(aPart.getName(), aPart.getSeq(), aPart.getStringComposition(), aPart.getLeftOverhang(), aPart.getRightOverhang(), aPart.getType(), aPart.getScars(), aPart.getDirections(), false);
         if (existingPart != null) {
             return existingPart;
         }
@@ -123,16 +125,14 @@ public class Collector {
     }
 
     //returns the vector you added or an existing vector that matches exactly
-    public Vector getExactVector(String name, String seq, ArrayList<String> tags, boolean allowTransient) {
+    public Vector getExactVector(String name, String seq, boolean allowTransient, String leftOverhang, String rightOverhang, String type, String vector, String composition, String resistance, int level) {
         Vector toReturn = null;
         ArrayList<Vector> allVectorsWithName = this.getAllVectorsWithName(name, allowTransient);
         if (allVectorsWithName != null) {
-            for (Vector p : allVectorsWithName) {
-                if (allowTransient || !p.isTransient()) {
-                    HashSet<String> queryTags = new HashSet(tags);
-                    HashSet<String> currentTags = new HashSet(p.getSearchTags());
-                    if (currentTags.equals(queryTags) && p.getSeq().equals(seq)) {
-                        toReturn = p;
+            for (Vector v : allVectorsWithName) {
+                if (allowTransient || !v.isTransient()) {
+                    if (v.getSeq().equals(seq) && v.getLeftOverhang().equals(leftOverhang) && v.getRightOverhang().equals(rightOverhang) && v.getType().equals(type) && v.getVector().equals(vector) && v.getComposition().equals(composition) && v.getResistance().equals(resistance) && v.getLevel() == level) {
+                        toReturn = v;
                         return toReturn;
                     }
                 }
@@ -143,7 +143,7 @@ public class Collector {
 
     //returns the vector you added or an existing vector that matches exactly
     public Vector addVector(Vector aVector) {
-        Vector existingVector = this.getExactVector(aVector.getName(), aVector.getSeq(), aVector.getSearchTags(), false);
+        Vector existingVector = this.getExactVector(aVector.getName(), aVector.getSeq(), false, aVector.getLeftOverhang(), aVector.getRightOverhang(), aVector.getType(), aVector.getVector(), aVector.getComposition(), aVector.getResistance(), aVector.getLevel());
         if (existingVector != null) {
             return existingVector;
         }

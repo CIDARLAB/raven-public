@@ -2,12 +2,17 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.algorithms.modasm;
+package org.cidarlab.raven.algorithms.modasm;
 
-import Controller.accessibility.ClothoReader;
-import Controller.algorithms.PrimerDesign;
-import Controller.algorithms.RGeneral;
-import Controller.datastructures.*;
+import org.cidarlab.raven.datastructures.RGraph;
+import org.cidarlab.raven.datastructures.Collector;
+import org.cidarlab.raven.datastructures.RVector;
+import org.cidarlab.raven.datastructures.Part;
+import org.cidarlab.raven.datastructures.RNode;
+import org.cidarlab.raven.datastructures.Vector;
+import org.cidarlab.raven.accessibility.ClothoReader;
+import org.cidarlab.raven.algorithms.core.PrimerDesign;
+import org.cidarlab.raven.algorithms.core.RGeneral;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,13 +59,6 @@ public class RGoldenGate extends RGeneral {
         for (Integer stage : stageVectors.keySet()) {
             RVector vec = ClothoReader.vectorImportClotho(stageVectors.get(stage));
             stageRVectors.put(stage, vec);
-        }
-        
-        //If the stageVector hash is empty, make a new default vector
-        if (stageRVectors.size() == 1) {
-            if (stageRVectors.get(0) == null) {
-                stageRVectors.put(0, new RVector("", "", -1, "pSK1A2", null));
-            }
         }
         
         for (int i = 0; i < asmGraphs.size(); i++) {
@@ -114,9 +112,11 @@ public class RGoldenGate extends RGeneral {
                 child.setROverhang(nextComp.get(0) + nextDir.get(0));
                 child.setLOverhang(parent.getLOverhang());
                 
+                if (child.getStage() > 0) {
                 if (vector != null) {
                     RVector newVector = new RVector(parent.getVector().getLOverhang(), nextComp.get(0) + nextDir.get(0), child.getStage(), vector.getName(), null);
                     child.setVector(newVector);
+                }
                 }
 
             } else if (j == children.size() - 1) {
@@ -125,9 +125,11 @@ public class RGoldenGate extends RGeneral {
                 child.setLOverhang(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1));
                 child.setROverhang(parent.getROverhang());
                 
+                if (child.getStage() > 0) {
                 if (vector != null) {
                     RVector newVector = new RVector(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1), parent.getVector().getROverhang(), child.getStage(), vector.getName(), null);
                     child.setVector(newVector);
+                }
                 }
 
             } else {
@@ -138,10 +140,12 @@ public class RGoldenGate extends RGeneral {
                 child.setLOverhang(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1));
                 child.setROverhang(nextComp.get(0) + nextDir.get(0));
                 
+                if (child.getStage() > 0) {
                 if (vector != null) {
                     RVector newVector = new RVector(prevComp.get(prevComp.size() - 1) + prevDir.get(prevComp.size() - 1), nextComp.get(0) + nextDir.get(0), child.getStage(), vector.getName(), null);
                     child.setVector(newVector);
                 } 
+                }
             }
             
             ArrayList<RNode> grandChildren = child.getNeighbors();           
@@ -177,24 +181,18 @@ public class RGoldenGate extends RGeneral {
         if (node == root) {
             
             String seq = "";
-            ArrayList<String> tags = new ArrayList<String>();
-            String type = "";
-            tags.add("LO: " + node.getLOverhang());
-            tags.add("RO: " + node.getROverhang());
-            tags.add("Direction: " + node.getDirection());
-            tags.add("Scars: " + node.getScars());
+            ArrayList<String> type = new ArrayList();
             ArrayList<Part> allPartsWithName = coll.getAllPartsWithName(node.getName(), true);
             if (!allPartsWithName.isEmpty()) {
                 seq = allPartsWithName.get(0).getSeq();
                 for (int i = 0; i < allPartsWithName.size(); i++) {
                     type = allPartsWithName.get(i).getType();
-                    if (!type.equalsIgnoreCase("plasmid")) {
+                    if (!type.contains("plasmid")) {
                         break;
                     }
                 }
             }
-            tags.add("Type: " + type);
-            Part currentPart = coll.getExactPart(node.getName(), seq, node.getComposition(), tags, true);
+            Part currentPart = coll.getExactPart(node.getName(), null, node.getComposition(), node.getLOverhang(), node.getROverhang(), type, node.getScars(), node.getDirection(), true);
             currentSeq = currentPart.getSeq();            
             Vector vector = coll.getVector(node.getVector().getUUID(), true);
             rSeq = vector.getSeq();
@@ -203,31 +201,26 @@ public class RGoldenGate extends RGeneral {
         } else {
 
             String seq = "";
-            ArrayList<String> tags = new ArrayList<String>();
-            String type = "";
-            tags.add("LO: " + node.getLOverhang());
-            tags.add("RO: " + node.getROverhang());
-            tags.add("Direction: " + node.getDirection());
-            tags.add("Scars: " + node.getScars());
+            ArrayList<String> type = new ArrayList();
             ArrayList<Part> allPartsWithName = coll.getAllPartsWithName(node.getName(), true);
             if (!allPartsWithName.isEmpty()) {
                 seq = allPartsWithName.get(0).getSeq();
                 if (node.getDirection().size() == 1) {
-                    if (node.getDirection().get(0).equals("-") && allPartsWithName.get(0).getSearchTags().contains("Direction: [+]")) {
+                    if (node.getDirection().get(0).equals("-") && allPartsWithName.get(0).getDirections().get(0).equals("+")) {
                         seq = PrimerDesign.reverseComplement(seq);
-                    } else if (node.getDirection().get(0).equals("+") && allPartsWithName.get(0).getSearchTags().contains("Direction: [-]")) {
+                    } else if (node.getDirection().get(0).equals("+") && allPartsWithName.get(0).getDirections().get(0).equals("-")) {
                         seq = PrimerDesign.reverseComplement(seq);
                     }
                 }
                 for (int i = 0; i < allPartsWithName.size(); i++) {
                     type = allPartsWithName.get(i).getType();
-                    if (!type.equalsIgnoreCase("plasmid")) {
+                    if (!type.contains("plasmid")) {
                         break;
                     }
                 }
             }
-            tags.add("Type: " + type);
-            Part currentPart = coll.getExactPart(node.getName(), seq, node.getComposition(), tags, true);
+            
+            Part currentPart = coll.getExactPart(node.getName(), seq, node.getComposition(), node.getLOverhang(), node.getROverhang(), type, node.getScars(), node.getDirection(), true);
             currentSeq = currentPart.getSeq();
 
             if (currentPart.isBasic()) {
@@ -237,14 +230,14 @@ public class RGoldenGate extends RGeneral {
                 
                 //If this part is the left-most library part, the vector is the left neighbor 
                 if (indexOf == 0) {
-                    Vector vector = coll.getVector(node.getVector().getUUID(), true);
+                    Vector vector = coll.getVector(root.getVector().getUUID(), true);
                     rightNeighbor = composition.get(indexOf + 1);
                     rSeq = rightNeighbor.getSeq();
                     lSeq = vector.getSeq();
                     
                 //If this part is the right-most library part, the vector is the right neighbor    
                 } else if (indexOf == composition.size() - 1) {
-                    Vector vector = coll.getVector(node.getVector().getUUID(), true);
+                    Vector vector = coll.getVector(root.getVector().getUUID(), true);
                     leftNeighbor = composition.get(indexOf - 1);
                     rSeq = vector.getSeq();
                     lSeq = leftNeighbor.getSeq();

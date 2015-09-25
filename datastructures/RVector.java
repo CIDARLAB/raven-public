@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.datastructures;
+package org.cidarlab.raven.datastructures;
 
 /**
  *
@@ -76,6 +76,10 @@ public class RVector {
         String name = this._name;
         int stage = this._level;
 
+        if (name.contains("_")) {
+            name = name.substring(0, name.indexOf("_"));
+        }
+        
         if (direction.equals("+")) {
             String aVecLOlevelRO = name + "|" + lOverhang + "|" + stage + "|" + rOverhang;
             return aVecLOlevelRO;
@@ -113,7 +117,7 @@ public class RVector {
         _lOverhang = overhang;
     }
 
-    public void setStringResistance(String s) {
+    public void setResistance(String s) {
         _resistance = s;
     }
 

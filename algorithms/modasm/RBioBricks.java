@@ -2,15 +2,20 @@
  * This class contains the SDS++ algorithm
  * 
  */
-package Controller.algorithms.modasm;
+package org.cidarlab.raven.algorithms.modasm;
 
-import Controller.accessibility.ClothoReader;
-import Controller.algorithms.PrimerDesign;
-import Controller.algorithms.RGeneral;
+import org.cidarlab.raven.datastructures.RGraph;
+import org.cidarlab.raven.datastructures.Collector;
+import org.cidarlab.raven.datastructures.RVector;
+import org.cidarlab.raven.datastructures.Part;
+import org.cidarlab.raven.datastructures.RNode;
+import org.cidarlab.raven.datastructures.Vector;
+import org.cidarlab.raven.accessibility.ClothoReader;
+import org.cidarlab.raven.algorithms.core.PrimerDesign;
+import org.cidarlab.raven.algorithms.core.RGeneral;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import Controller.datastructures.*;
 
 /**
  *
@@ -21,7 +26,7 @@ public class RBioBricks extends RGeneral {
     /**
      * Clotho part wrapper for BioBricks 3A
      */
-    public ArrayList<RGraph> bioBricksClothoWrapper(HashSet<Part> goalPartsVectors, HashSet<String> required, HashSet<String> recommended, HashSet<String> forbidden, HashSet<String> discouraged, ArrayList<Part> partLibrary, HashMap<Integer, Vector> stageVectors, ArrayList<Double> costs) throws Exception {
+    public ArrayList<RGraph> bioBricksClothoWrapper(HashSet<Part> gps, HashSet<String> required, HashSet<String> recommended, HashSet<String> forbidden, HashSet<String> discouraged, ArrayList<Part> partLibrary, HashMap<Integer, Vector> stageVectors, ArrayList<Double> costs) throws Exception {
 
         //Try-Catch block around wrapper method
         _maxNeighbors = 2;
@@ -30,7 +35,7 @@ public class RBioBricks extends RGeneral {
         HashMap<String, RGraph> partHash = ClothoReader.partImportClotho(partLibrary, discouraged, recommended);
 
         //Put all parts into hash for mgp algorithm            
-        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(goalPartsVectors);
+        ArrayList<RNode> gpsNodes = ClothoReader.gpsToNodesClotho(gps);
 
         //Run hierarchical Raven Algorithm
         ArrayList<RGraph> optimalGraphs = createAsmGraph_mgp(gpsNodes, partHash, required, recommended, forbidden, discouraged, null, true);
@@ -52,13 +57,6 @@ public class RBioBricks extends RGeneral {
         for (Integer stage : stageVectors.keySet()) {
             RVector vec = ClothoReader.vectorImportClotho(stageVectors.get(stage));
             stageRVectors.put(stage, vec);
-        }
-        
-        //If the stageVector hash is empty, make a new default vector
-        if (stageRVectors.size() == 1) {
-            if (stageRVectors.get(1) == null) {
-                stageRVectors.put(0, new RVector("EX", "SP", -1, "pSK1A2", null));
-            }
         }
         
         //Loop through each optimal graph and grab the root node to prime for the traversal
@@ -169,7 +167,11 @@ public class RBioBricks extends RGeneral {
                 if (child.getLOverhang().isEmpty()) {
                     scars.add("_");
                 }
-                scars.add("BB");
+                if (child.getType().get(0).equals("gene") || child.getType().get(0).equals("reporter") ) {
+                    scars.add("BBm");
+                } else {
+                    scars.add("BB");
+                }
             }
 
             //Make recursive call

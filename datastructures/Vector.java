@@ -2,9 +2,12 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package Controller.datastructures;
+package org.cidarlab.raven.datastructures;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  *
@@ -12,11 +15,17 @@ import java.util.ArrayList;
  */
 public class Vector {
 
-    public static Vector generateVector(String name, String sequence) {
+    public static Vector generateVector(String name, String sequence, String leftOverhang, String rightOverhang, String type, String vector, String composition, String resistance, int level) {
         Vector newVector = new Vector();
         newVector.sequence = sequence;
         newVector.name = name;
-        newVector.searchTags = new ArrayList<String>();
+        newVector.leftOverhang = leftOverhang;
+        newVector.rightOverhang = rightOverhang;
+        newVector.type = type;
+        newVector.vector = vector;
+        newVector.composition = composition;
+        newVector.resistance = resistance;
+        newVector.level = level;
 
         return newVector;
     }
@@ -29,7 +38,6 @@ public class Vector {
     public static Vector generateVector(String name) {
         Vector newVector = new Vector();
         newVector.name = name;
-        newVector.searchTags = new ArrayList<String>();
         return newVector;
     }
 
@@ -38,95 +46,23 @@ public class Vector {
         return this.uuid;
     }
 
-    public ArrayList<String> getSearchTags() {
-        return this.searchTags;
-    }
-
-    public void addSearchTag(String string) {
-        this.searchTags.add(string);
-    }
-
     //returns this vector or an exact match
-    public Vector saveDefault(Collector coll) {
+    public Vector saveDefault(Collector coll, HashMap<Part, Vector> partVectorPairs) {
         Vector toReturn =  coll.addVector(this);
-        if(!this.equals(toReturn)) {
-            UUID--;
+        
+        //If this is a copy of an existing vector, be sure to correct partVectoPairs
+        if (this != toReturn) {
+            for (Part p : partVectorPairs.keySet()) {
+                if (partVectorPairs.get(p) == this) {
+                    partVectorPairs.put(p, toReturn);
+                }
+            }
         }
         return toReturn;
     }
 
     public String getName() {
         return this.name;
-    }
-
-    public int getLevel() {
-        int level = -1;
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("Level:")) {
-                level = Integer.parseInt(tag.substring(7).trim());
-            }
-        }
-        return level;
-    }
-
-    public String getResistance() {
-        String toReturn = "";
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("Resistance:")) {
-                toReturn = tag.substring(12).trim();
-            }
-        }
-        return toReturn;
-    }
-
-    public String getLeftOverhang() {
-        String toReturn = "";
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("LO:")) {
-                toReturn = tag.substring(4);
-            }
-        }
-        return toReturn;
-    }
-
-    public String getRightOverhang() {
-        String toReturn = "";
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("RO:")) {
-                toReturn = tag.substring(4);
-            }
-        }
-        return toReturn;
-    }
-    
-    public String getComposition() {
-        String toReturn = "";
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("Composition:")) {
-                toReturn = tag.substring(13);
-            }
-        }
-        return toReturn;
-    }
-    
-    public String getVector() {
-        String toReturn = "";
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("Vector:")) {
-                toReturn = tag.substring(8);
-            }
-        }
-        return toReturn;
-    }
-
-    public String getType() {
-        String toReturn = "";
-        for (String tag : this.searchTags) {
-            if (tag.startsWith("Type:")) {
-                toReturn = tag.substring(6);
-            }
-        }
-        return toReturn;
     }
 
     public String getSeq() {
@@ -140,10 +76,45 @@ public class Vector {
     public void setTransientStatus(Boolean b) {
         _transient = b;
     }
+    
+    //Left overhang
+    @Getter
+    @Setter
+    private String leftOverhang;
+    
+    //Right overhang
+    @Getter
+    @Setter
+    private String rightOverhang;
+    
+    //Type
+    @Getter
+    @Setter
+    private String type;
+    
+    //Vector name
+    @Getter
+    @Setter
+    private String vector;
+
+    //Composition
+    @Getter
+    @Setter
+    private String composition;
+    
+    //Resistance
+    @Getter
+    @Setter
+    private String resistance;
+    
+    //Resistance
+    @Getter
+    @Setter
+    private int level = -1;
+    
     //Fields
     protected static int UUID = 0;
     private String name;
-    private ArrayList<String> searchTags = new ArrayList<String>();
     private String sequence;
     private String uuid;
     private Boolean _transient = true;
